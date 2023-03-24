@@ -18,12 +18,12 @@ struct block
 
 } typedef Block;
 
-Block *newBlock(Block *prev, Str name, Str *attr)
+Block *newBlock(Block *prev, Str* names, Str *attr)
 {
     Block *block = (Block*)malloc(sizeof(Block));
-    block->names = name;
-    block->prev = prev;
+    block->names = names;
     block->attr = attr;
+    block->prev = prev;
     block->next = nullptr;
     return block;
 }
@@ -32,7 +32,7 @@ void delBlock(Block *block)
 {
     block->prev->next = block->next;
     block->next->prev = block->prev;
-    delStr(block->name);
+    delStr(*(block->names));
     free(block);
 }
 
@@ -56,3 +56,7 @@ int main()
 
     return 0;
 }
+
+
+
+#define NAMEENDs "\n{,"
