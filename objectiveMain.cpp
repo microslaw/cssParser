@@ -87,6 +87,18 @@ public:
         }
     }
 
+    bool isInt() const
+    {
+        for (int i = 0; this->charList[i] != NULLC; i++)
+        {
+            if (this->charList[i] > '9' || this->charList[i] < '0')
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     int toInt() const
     {
         int result = 0;
@@ -205,6 +217,7 @@ public:
         {
             tmp = tmp->prev;
         }
+        return tmp;
     }
 
     ~Block()
@@ -215,6 +228,17 @@ public:
         delete this->attributes;
     }
 };
+
+char readTill(Str buffor, char endChar, char endChar2 = NULLC)
+{
+    char ch = getchar();
+    while (ch != endChar && ch != endChar2)
+    {
+        buffor += ch;
+        ch = getchar();
+    }
+    return ch;
+}
 
 // returns first non whitespace char
 char skipWhitespace()
@@ -235,12 +259,8 @@ void readSelectors(Block *block)
     char ch = skipWhitespace();
     while (ch != STARTBRACKET)
     {
-        while (ch != SELECTORSEPARATOR && ch != STARTBRACKET)
-        {
-            block->selectors[i] += ch;
-            ch = getchar();
-            // final ch value is ignored, It will always be STARTBRACKET
-        }
+        readTill(block->selectors[i], SELECTORSEPARATOR, STARTBRACKET);
+        // final ch value is ignored, It will always be STARTBRACKET
         i++;
     }
     block->selectorCount = i;
@@ -252,20 +272,11 @@ void readAttributes(Block *block)
     int i = 0;
     while (ch != ENDBRACKET)
     {
-        while (ch != ATTRIBUTENAMEVALSEPARATOR && ch != ENDBRACKET)
-        {
-            (block->attributes[i]).name += ch;
-            ch = getchar();
-        }
+        readTill((block->attributes[i]).name, ATTRIBUTENAMEVALSEPARATOR);
         (block->attributes[i]).name.stripEnd();
         ch = skipWhitespace();
 
-        while (ch != ATTRIBUTESEPARATOR && ch != ENDBRACKET)
-        {
-            (block->attributes[i]).value += ch;
-            ch = getchar();
-        }
-
+        readTill((block->attributes[i]).value, ATTRIBUTENAMEVALSEPARATOR, ENDBRACKET);
         block->attributes->value.stripEnd();
         ch = skipWhitespace();
         i++;
@@ -307,40 +318,159 @@ bool readBlocks(Block *block)
     }
 }
 
-
-char readTill(Str buffor, char endChar, char endChar2 = NULLC)
-{
-    char ch = getchar();
-    while (ch != endChar  && ch != endChar2)
-    {
-        buffor += ch;
-        ch = getchar();
-    }
-    return ch;
-}
-
 // reads command type and arguments
 // returns command type
 char readCommand(Str &arg1, Str &arg2)
 {
 
     int i = 0;
-    int j = 0;
     char ch = skipWhitespace();
 
     readTill(arg1, COMMANDARGSSEPARATOR);
-    
+
     char toReturn = getchar();
     getchar(); // get rid of COMMANDARGSSEPARATOR
     readTill(arg2, ENDL);
     return toReturn;
-
 }
 
-void executeCommands(Block *block)
+void sCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
 {
-    Str arg1, arg2;
-    char ch = skipWhitespace();
+    if (arg1.isInt() && arg2.isEmpty())
+    {
+        int i = arg1.toInt();
+        if (i <= blockCount)
+        {
+            printf("%d", head[arg1.toInt() - 1].selectorCount + 1);
+        }
+        return;
+    }
+    else if (arg1.isInt() && arg2.isInt())
+    {
+        int i = arg1.toInt();
+        int j = arg2.toInt();
+        if (i <= blockCount && j <= head[i - 1].selectorCount)
+        {
+            printf("%s", head[i - 1].selectors[j - 1].charList);
+        }
+        return;
+    }
+    else if (arg2.isEmpty())
+    {
+        int selectorCount = 0;
+        for (int i = 0; i < blockCount; i++)
+        {
+            if (head[i].selectors[0] == arg1)
+            {
+                selectorCount++;
+            }
+            i++;
+        }
+        printf("%d", selectorCount);
+    }
+}
+
+void aCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
+{
+    if (arg1.isInt() && arg2.isEmpty())
+    {
+        int i = arg1.toInt();
+        if (i <= blockCount)
+        {
+            printf("%d", head[arg1.toInt() - 1].attrCount + 1);
+        }
+        return;
+    }
+    else if (arg1.isInt())
+    {
+        int i = arg1.toInt();
+        if (i <= blockCount)
+        {
+            for (int j = 0; j < head[i - 1].attrCount; j++)
+            {
+                if (head[i - 1].attributes[j].name == arg2)
+                {
+                    printf("%s", head[i - 1].attributes[j].value.charList);
+                }
+            }
+        }
+        return;
+    }
+    ///!!! remove when reading
+    else if (arg2.isEmpty())
+    {
+        int selectorCount = 0;
+        for (int i = 0; i < blockCount; i++)
+        {
+            for (int j = 0; j < head[i].attrCount; j++)
+            {
+                if (head[i].attributes[j].name == arg1)
+                {
+                    selectorCount++;
+                }
+            }
+            i++;
+        }
+        printf("%d", selectorCount);
+    }
+}
+
+void eCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
+{
+    int lastI = -1;
+    int lastJ = -1;
+    for (int i = 0; i < blockCount; i++)
+    {
+        for (int j = 0; j < (head[i]).selectorCount; j++)
+        {
+            if ((head[i]).selectors[j] == arg1)
+            {
+                lastI = i;
+                lastJ = j;
+            }
+        }
+    }
+    if (lastI != -1)
+    {
+        printf("%s", head[lastI]).attributes[lastJ].value);
+    }
+}
+
+void dCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
+{
+    if (arg1.isInt() && arg2.isEmpty())
+    {
+        delete head[arg1.toInt() - 1];
+    }
+    else
+    {
+     hire   
+    }
+}
+
+void executeCommands(Block *head, int blockCount, char command, const Str &arg1, const Str &arg2)
+{
+    switch (command)
+    {
+    case 'S':
+        sCommands(head, blockCount, arg1, arg2);
+        break;
+    case 'A':
+        aCommands(head, blockCount, arg1, arg2);
+        break;
+    case 'E':
+        eCommands(head, blockCount, arg1, arg2);
+        break;
+    case 'D':
+        dCommands(head, blockCount, arg1, arg2);
+        break;
+    case '?':
+        printf("%d", blockCount);
+        break;
+    default:
+        printf("error");
+        break;
+    }
 }
 
 int main()
@@ -360,5 +490,4 @@ int main()
 // czy można używać klas
 // czy można używać realloc
 
-// dodać readtill?
 // wczytywanie arg2 w readcommand w każdym przypadku
