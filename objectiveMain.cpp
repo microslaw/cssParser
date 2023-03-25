@@ -20,6 +20,7 @@
 #define ATTRIBUTESEPARATOR ';'
 #define SPACE ' '
 #define TABULATOR '\t'
+#define COMMANDARGSSEPARATOR ','
 
 bool isWhiteSpace(char ch)
 {
@@ -68,7 +69,7 @@ public:
             i--;
             if (i < this->reservedSize - 16)
             {
-                realloc(this->charList, i - 16);
+                this->charList = (char *)realloc(this->charList, i - 16);
             }
         }
     }
@@ -84,6 +85,17 @@ public:
         {
             charList[i] = this->charList[i];
         }
+    }
+
+    int toInt() const
+    {
+        int result = 0;
+        for (int i = 0; i < this->length(); i++)
+        {
+            result *= 10;
+            result += this->charList[i] - '0';
+        }
+        return result;
     }
 
     Str &operator+=(char ch)
@@ -108,11 +120,16 @@ public:
         return *this;
     }
 
+    char &operator[](int index)
+    {
+        return this->charList[index];
+    }
+
     ~Str()
     {
         if (this->charList != nullptr)
         {
-            delete this->charList;
+            free(this->charList);
         }
     }
 };
@@ -226,6 +243,7 @@ void readSelectors(Block *block)
         }
         i++;
     }
+    block->selectorCount = i;
 }
 
 void readAttributes(Block *block)
@@ -236,26 +254,111 @@ void readAttributes(Block *block)
     {
         while (ch != ATTRIBUTENAMEVALSEPARATOR && ch != ENDBRACKET)
         {
-            block->attributes->name += ch;
+            (block->attributes[i]).name += ch;
             ch = getchar();
         }
+        (block->attributes[i]).name.stripEnd();
+        ch = skipWhitespace();
 
         while (ch != ATTRIBUTESEPARATOR && ch != ENDBRACKET)
         {
-            block->attributes->name += ch;
+            (block->attributes[i]).value += ch;
             ch = getchar();
         }
+
+        block->attributes->value.stripEnd();
+        ch = skipWhitespace();
+        i++;
     }
+    block->attrCount = i;
+}
+// reads blocks and COMMANDSTART
+// if COMMANDSTART found returns true
+bool readBlocks(Block *block)
+{
+    char ch = skipWhitespace();
+    Str commandStr;
+    while (ch != COMMANDSTART[0])
+    {
+        readSelectors(block);
+        readAttributes(block);
+    }
+    if (ch == NULLC)
+    {
+        // returning here means no commands
+        return;
+    }
+
+    commandStr += ch;
+
+    //!!! do better input commandstart
+    int i = 1;
+    while (COMMANDSTART[i] != NULLC)
+    {
+        if (ch == COMMANDSTART[i])
+        {
+            commandStr += ch;
+        }
+        else
+        {
+            commandStr = Str();
+        }
+        i++;
+    }
+}
+
+
+char readTill(Str buffor, char endChar, char endChar2 = NULLC)
+{
+    char ch = getchar();
+    while (ch != endChar  && ch != endChar2)
+    {
+        buffor += ch;
+        ch = getchar();
+    }
+    return ch;
+}
+
+// reads command type and arguments
+// returns command type
+char readCommand(Str &arg1, Str &arg2)
+{
+
+    int i = 0;
+    int j = 0;
+    char ch = skipWhitespace();
+
+    readTill(arg1, COMMANDARGSSEPARATOR);
+    
+    char toReturn = getchar();
+    getchar(); // get rid of COMMANDARGSSEPARATOR
+    readTill(arg2, ENDL);
+    return toReturn;
+
+}
+
+void executeCommands(Block *block)
+{
+    Str arg1, arg2;
+    char ch = skipWhitespace();
 }
 
 int main()
 {
+    while (getchar() != '^')
+        ;
 
-    Block *block = new Block;
-    readSelectors(block);
-    readAttributes(block);
-
-    Block *tmp = block;
+    while (true)
+    {
+        char ch = getchar();
+    }
 
     return 0;
 }
+
+// co ma być w array T = 8
+// czy można używać klas
+// czy można używać realloc
+
+// dodać readtill?
+// wczytywanie arg2 w readcommand w każdym przypadku
