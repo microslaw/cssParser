@@ -34,6 +34,7 @@ struct block
 
 } typedef Block;
 
+<<<<<<< HEAD
 struct attr
 {
     Str *name;
@@ -68,6 +69,9 @@ void delBlock(Block *block)
     block->prev->next = block->next;
     block->next->prev = block->prev;
     delStr(block->names);
+=======
+    delStr(*(block->names));
+>>>>>>> 786e389fa065486ad46c9f8fef53cded05d228ec
     free(block);
 }
 
@@ -137,7 +141,11 @@ int main()
 {
     Block *block = newBlock();
     char tab []=  {SELECTORSEPARATOR, 'a', NULLC};
-    readTill(block->names[0], tab);
+    readTill(block->names[0], {SELECTORSEPARATOR, 'a', NULLC});
 
     return 0;
 }
+
+
+
+#define NAMEENDs "\n{,"
