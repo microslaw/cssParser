@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #define T 8
 #define STRLEN 16
@@ -19,6 +20,11 @@
 #define ATTRIBUTESEPARATOR ';'
 #define SPACE ' '
 #define TABULATOR '\t'
+
+bool isWhiteSpace(char ch)
+{
+    return ch == SPACE || ch == TABULATOR || ch == ENDL;
+}
 
 class Str
 {
@@ -53,6 +59,20 @@ public:
         return i;
     }
 
+    void stripEnd()
+    {
+        int i = this->length();
+        while (isWhiteSpace(this->charList[i]))
+        {
+            this->charList[i] = NULLC;
+            i--;
+            if (i < this->reservedSize - 16)
+            {
+                realloc(this->charList, i - 16);
+            }
+        }
+    }
+
     bool isEmpty() const
     {
         return !(this->length());
@@ -71,21 +91,19 @@ public:
         if (this->reservedSize == 0)
         {
             this->reservedSize = STRLEN;
-            this->charList = new char[STRLEN];
+            this->charList = (char *)malloc(reservedSize);
+            this->charList[0] = NULLC;
         }
         else if (this->length() + 2 > this->reservedSize)
         {
             this->reservedSize += STRLEN;
-            char *tmp = new char[this->reservedSize];
+            char *tmp = (char *)realloc(this->charList, this->reservedSize);
             this->copyToCharlist(tmp);
             this->charList = tmp;
-            delete this->charList;
         }
-        else
-        {
-            this->charList[this->length() + 1] = NULLC;
-            this->charList[this->length()] = ch;
-        }
+
+        this->charList[this->length() + 1] = NULLC;
+        this->charList[this->length()] = ch;
 
         return *this;
     }
@@ -185,15 +203,14 @@ public:
 char skipWhitespace()
 {
     char ch = getchar();
-    while (ch == SPACE || ch == TABULATOR || ch == ENDL)
+    while (isWhiteSpace(ch))
     {
         ch = getchar();
     }
     return ch;
 }
 
-
-// after execution text left in ostream does not have STARTBRACKET 
+// after execution text left in ostream does not have STARTBRACKET
 void readSelectors(Block *block)
 {
     int i = 0;
@@ -205,7 +222,7 @@ void readSelectors(Block *block)
         {
             block->selectors[i] += ch;
             ch = getchar();
-            // final ch value is ignored, It will always be STARTBRACKET 
+            // final ch value is ignored, It will always be STARTBRACKET
         }
         i++;
     }
@@ -220,26 +237,25 @@ void readAttributes(Block *block)
         while (ch != ATTRIBUTENAMEVALSEPARATOR && ch != ENDBRACKET)
         {
             block->attributes->name += ch;
-            ch = getchar(); 
+            ch = getchar();
+        }
+
+        while (ch != ATTRIBUTESEPARATOR && ch != ENDBRACKET)
+        {
+            block->attributes->name += ch;
+            ch = getchar();
         }
     }
 }
 
 int main()
 {
-    char ch;
-    while(ch = getchar()){
-        printf("%c", ch);
-    };
-    
-    
+
     Block *block = new Block;
     readSelectors(block);
     readAttributes(block);
 
     Block *tmp = block;
-
-
 
     return 0;
 }
