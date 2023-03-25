@@ -17,6 +17,8 @@
 #define SELECTORSEPARATOR ','
 #define ATTRIBUTENAMEVALSEPARATOR ':'
 #define ATTRIBUTESEPARATOR ';'
+#define SPACE ' '
+#define TABULATOR '\t'
 
 class Str
 {
@@ -36,7 +38,7 @@ public:
                 this->charList = nullptr;
                 return;
             }
-            this->charList = new char [size];
+            this->charList = new char[size];
             this->charList[size] = NULLC;
         }
     }
@@ -69,12 +71,12 @@ public:
         if (this->reservedSize == 0)
         {
             this->reservedSize = STRLEN;
-            this->charList = new char [STRLEN];
+            this->charList = new char[STRLEN];
         }
         else if (this->length() + 2 > this->reservedSize)
         {
             this->reservedSize += STRLEN;
-            char *tmp = new char [this->reservedSize];
+            char *tmp = new char[this->reservedSize];
             this->copyToCharlist(tmp);
             this->charList = tmp;
             delete this->charList;
@@ -163,7 +165,7 @@ public:
             }
             return tmp;
         }
-        index*=(-1);
+        index *= (-1);
         for (int i = 0; i < index; i++)
         {
             tmp = tmp->prev;
@@ -179,19 +181,64 @@ public:
     }
 };
 
-int readSelectors(){
-    char ch = getch();
-    while ()
+// returns first non whitespace char
+char skipWhitespace()
+{
+    char ch = getchar();
+    while (ch == SPACE || ch == TABULATOR || ch == ENDL)
     {
-
-        
+        ch = getchar();
     }
-    
+    return ch;
+}
+
+
+// after execution text left in ostream does not have STARTBRACKET 
+void readSelectors(Block *block)
+{
+    int i = 0;
+
+    char ch = skipWhitespace();
+    while (ch != STARTBRACKET)
+    {
+        while (ch != SELECTORSEPARATOR && ch != STARTBRACKET)
+        {
+            block->selectors[i] += ch;
+            ch = getchar();
+            // final ch value is ignored, It will always be STARTBRACKET 
+        }
+        i++;
+    }
+}
+
+void readAttributes(Block *block)
+{
+    char ch = skipWhitespace();
+    int i = 0;
+    while (ch != ENDBRACKET)
+    {
+        while (ch != ATTRIBUTENAMEVALSEPARATOR && ch != ENDBRACKET)
+        {
+            block->attributes->name += ch;
+            ch = getchar(); 
+        }
+    }
 }
 
 int main()
 {
+    char ch;
+    while(ch = getchar()){
+        printf("%c", ch);
+    };
+    
+    
     Block *block = new Block;
+    readSelectors(block);
+    readAttributes(block);
+
+    Block *tmp = block;
+
 
 
     return 0;
