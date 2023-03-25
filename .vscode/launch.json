@@ -5,13 +5,13 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
-            "args": [],
+            "args": ["<", "in.txt", ">", "out.txt"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "C:\\msys64\\mingw64\\bin\\gdb.exe",
+            "miDebuggerPath": "C:\\C++\\mingw64\\bin\\gdb.exe",
             "setupCommands": [
                 {
                     "description": "Włącz formatowanie kodu dla gdb",

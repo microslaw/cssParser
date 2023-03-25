@@ -3,10 +3,12 @@
 #include <malloc.h>
 
 #define T 8
+#define STRLEN 16
 
 #define NULLC '\0'
 #define ENDL '\n'
 
+#define SELECTORENDs '}'
 
 #define COMMANDSTART "????"
 #define COMMANDEND "****"
@@ -14,138 +16,226 @@
 #define STARTBRACKET '{'
 #define ENDBRACKET '}'
 #define SELECTORSEPARATOR ','
-#define ATTRIBUTENAMEVALUESEPARATOR ':'
+#define ATTRIBUTENAMEVALSEPARATOR ':'
 #define ATTRIBUTESEPARATOR ';'
 
-
-
-
-struct str
+struct Str
 {
-    char *str;
-} typedef Str;
+    char *charList;
+};
 
-struct block
+struct Attr
 {
-    Str *names;
+    Str name;
+    Str value;
+};
+
+struct Block
+{
     Block *next;
     Block *prev;
+
+    Str *selectors;
+    int selectorCount;
+
     Attr *attr;
+    int attrCount;
+};
 
-} typedef Block;
-
-<<<<<<< HEAD
-struct attr
+// returns new string
+// size excludes NULLC
+Str newStr(int size = 0, Str *str = nullptr)
 {
-    Str *name;
-    Str *value;
-} typedef Attr;
-
-Block *newBlock(Block *prev = nullptr, Str *names = nullptr, Attr *attr = nullptr)
-{
-    if (names == nullptr)
+    Str newString;
+    if (str == nullptr)
     {
-        names = (Str *)malloc(sizeof(Str)*T);
-        for (int i = 0; i < T; i++)
+        if (size == 0)
         {
-            names[i] = newStr(1);
+            newString.charList = nullptr;
+            return newString;
         }
+        newString.charList = (char *)malloc(sizeof(Str) * (size + 1));
     }
-    if (attr == nullptr)
+    newString.charList[size] = NULLC;
+    return newString;
+}
+
+void delStr(Str string)
+{
+    free(string.charList);
+}
+
+Str *newStrList(int length)
+{
+    Str *newStringList;
+    newStringList = (Str *)malloc(sizeof(Str) * length);
+    for (int i = 0; i < length; i++)
     {
-        attr = newAttr(newStr(1), newStr(1));
+        newStringList[i] = newStr();
+    }
+    return newStringList;
+}
+
+void delStrList(Str *stringList, int length)
+{
+    for (int i = 0; i < length; i++)
+    {
+
+        delStr(stringList[i]);
+    }
+    free(stringList);
+}
+
+Attr *newAttrList(int size)
+{
+    Attr *attrList = (Attr *)malloc(sizeof(Attr) * size);
+    for (int i = 0; i < size; i++)
+    {
+        Attr attribute;
+        attribute.name = newStr();
+        attribute.value = newStr();
+        attrList[i] = attribute;
+    }
+    return attrList;
+}
+
+void delAttrList(Attr *attr, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        delStr(attr[i].name);
+        delStr(attr[i].value);
+    }
+    free(attr);
+}
+
+Block *newBlock(Block *prev = nullptr, int selectorCount = T, int attrCount = T)
+{
+    Block *newBlock = (Block *)malloc(sizeof(Block));
+
+    newBlock->prev = prev;
+    newBlock->next = nullptr;
+
+    if (prev != nullptr)
+    {
+        prev->next = newBlock;
     }
 
-    Block *block = (Block *)malloc(sizeof(Block));
-    block->names = names;
-    block->prev = prev;
-    block->attr = attr;
-    block->next = nullptr;
-    return block;
+    Str *selectors = newStrList(selectorCount);
+    newBlock->selectors = selectors;
+    newBlock->selectorCount = selectorCount;
+
+    Attr *attr = newAttrList(attrCount);
+    newBlock->attr = attr;
+    newBlock->attrCount = attrCount;
+
+    newBlock->attr = attr;
+    return newBlock;
 }
 
 void delBlock(Block *block)
 {
     block->prev->next = block->next;
     block->next->prev = block->prev;
-    delStr(block->names);
-=======
-    delStr(*(block->names));
->>>>>>> 786e389fa065486ad46c9f8fef53cded05d228ec
+    delStrList(block->selectors, block->selectorCount);
+    delAttrList(block->attr, block->attrCount);
     free(block);
 }
-
-Attr *newAttr(Str *name = nullptr, Str *value = nullptr)
-{
-    if (name == nullptr)
-    {
-        name = newStr(1);
-    }
-    if (value == nullptr)
-    {
-        value = newStr(1);
-    }
-
-    Attr *attr = (Attr *)malloc(sizeof(Attr));
-    attr->name = name;
-    attr->value = value;
-    return attr;
-}
-
-void delAttr(Attr *attr)
-{
-    delStr(attr->name);
-    delStr(attr->value);
-    free(attr);
-}
-
-Str *newStr(int size = 0, Str* str = nullptr)
-{
-    Str *str;
-    if(str == nullptr)
-    {
-        str = (Str *)malloc(sizeof(Str)*size);
-    }
-    str->str[0] = NULLC;
-    return str;
-}
-
-void delStr(Str *str)
-{
-    free(str->str);
-}
-
 
 // returns unwanted character
 // adds NULLC at the end
 // if c is not NULL, it will stop reading when it finds c or NULLC
-char readTill(Str buffer, char c [])
+// does not read \t
+char readTill(Str buffer, char endList[])
 {
     int i = 0;
-    while (buffer.str[i] != c && buffer.str[i] != NULLC)
+    int j = 0;
+    char ch = getchar();
+    while (ch != NULLC)
     {
-        buffer.str[i] = getchar();
+        while (endList[j] != NULLC)
+        {
+            if (ch == endList[j])
+            {
+                buffer.charList[i] = NULLC;
+                return ch;
+            }
+        }
+        buffer.charList[i] = ch;
+        if (ch != '\t')
+        {
+            i++;
+        }
+
+        ch = getchar();
+    }
+    return NULLC;
+}
+
+char readTill(Str buffer, char endChar)
+{
+    int i = 0;
+    int j = 0;
+    char ch = getchar();
+    while (ch != NULLC)
+    {
+        if (ch == endChar)
+        {
+            buffer.charList[i] = NULLC;
+            return ch;
+        }
+        buffer.charList[i] = ch;
+        if (ch != '\t')
+        {
+            i++;
+        }
+        ch = getchar();
+    }
+    return NULLC;
+}
+
+void readSelectors(Block *block)
+{
+    int i = 0;
+    char ch = NULLC;
+    while (ch != STARTBRACKET)
+    {
+        ch = readTill(block->selectors[i], SELECTORENDs);
         i++;
     }
-    char ending = buffer.str[i];
-    buffer.str[i] = NULLC;
-    return ending;
+    block->selectorCount = i;
+}
+
+void readAttributes(Block *block)
+{
+    int i = 0;
+    char ch = NULLC;
+    while (ch != ENDBRACKET)
+    {
+        ch = readTill((block->attr[i]).name, ATTRIBUTENAMEVALSEPARATOR);
+        ch = readTill((block->attr[i]).value, ATTRIBUTESEPARATOR);
+        i++;
+    }
+    block->attrCount = i;
 }
 
 void printStr(Str str)
 {
-    printf("%s", str.str);
+    int i = 0;
+    while (str.charList[i] != NULLC)
+    {
+        printf("%c", str.charList[i]);
+        i++;
+    }
 }
 
 int main()
 {
     Block *block = newBlock();
-    char tab []=  {SELECTORSEPARATOR, 'a', NULLC};
-    readTill(block->names[0], {SELECTORSEPARATOR, 'a', NULLC});
+    readSelectors(block);
+    readAttributes(block);
+
+    delBlock(block);
 
     return 0;
 }
-
-
-
-#define NAMEENDs "\n{,"
