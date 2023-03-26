@@ -29,9 +29,24 @@
 #define TABULATOR '\t'
 #define COMMANDARGSSEPARATOR ','
 
+// getchar but can return char if it is passed as argument
+int movechar(char toPushBack = NULLC)
+{
+    static char buffer[STRLEN];
+    static int bufferLen = 0;
+    if (toPushBack == NULLC)
+    {
+        if (bufferLen == 0)
+        {
+            return getchar();
+        }
+        return buffer[--bufferLen];
+    }
 
-
-
+    buffer[bufferLen] = toPushBack;
+    bufferLen++;
+    return NULLC;
+}
 
 bool isWhiteSpace(char ch)
 {
@@ -73,7 +88,7 @@ public:
 
     void stripEnd()
     {
-        int i = this->length();
+        int i = this->length() - 1;
         while (isWhiteSpace(this->charList[i]))
         {
             this->charList[i] = NULLC;
@@ -277,26 +292,26 @@ public:
     }
 };
 
-char readTill(Str &buffor, char endChar, char endChar2 = NULLC)
+void readTill(Str &buffor, char endChar, char endChar2 = NULLC)
 {
-    char ch = getchar();
+    char ch = movechar();
     while (ch != endChar && ch != endChar2)
     {
         buffor += ch;
-        ch = getchar();
+        ch = movechar();
     }
-    return ch;
+    movechar(ch);
 }
 
 // returns first non whitespace char
-char skipWhitespace()
+void skipWhitespace()
 {
-    char ch = getchar();
+    char ch = movechar();
     while (isWhiteSpace(ch))
     {
-        ch = getchar();
+        ch = movechar();
     }
-    return ch;
+    movechar(ch);
 }
 
 // after execution text left in ostream does not have STARTBRACKET
@@ -304,40 +319,55 @@ void readSelectors(Block *block)
 {
     int i = 0;
 
-    char ch = skipWhitespace();
+    skipWhitespace();
 
-    if (ch != STARTBRACKET)
+    while (true)
     {
-        block->selectors[i] += ch;
-    }
-    while (ch != STARTBRACKET)
-    {
-        ch = readTill((block->selectors)[i], SELECTORSEPARATOR, STARTBRACKET);
-        // final ch value is ignored, It will always be STARTBRACKET
+        readTill((block->selectors)[i], SELECTORSEPARATOR, STARTBRACKET);
+        (block->selectors)[i].stripEnd();
+        skipWhitespace();
+        if (movechar() == STARTBRACKET) // value returned by movechar will be either SELECTORSEPARATOR or STARTBRACKET, and can be ignored
+        {
+            break;
+        }
+        skipWhitespace();
         i++;
     }
     block->selectorCount = i;
 }
 
-char readAttributes(Block *block)
+void readAttributes(Block *block)
 {
-    char ch = skipWhitespace();
+    skipWhitespace();
+    char ch;
     int i = 0;
-    while (ch != ENDBRACKET)
+    while (true)
     {
-        block->attributes[i].name += ch;
         readTill((block->attributes[i]).name, ATTRIBUTENAMEVALSEPARATOR);
         (block->attributes[i]).name.stripEnd();
-        ch = skipWhitespace();
-        block->attributes[i].value += ch;
+        movechar(); // skip ATTRIBUTENAMEVALSEPARATOR
+        skipWhitespace();
 
         readTill((block->attributes[i]).value, ATTRIBUTESEPARATOR, ENDBRACKET);
         block->attributes->value.stripEnd();
-        ch = skipWhitespace();
+        movechar(); // skip ATTRIBUTENAMEVALSEPARATOR
+        skipWhitespace();
+
         i++;
+
+        ch = movechar();
+        if ( ch == ENDBRACKET)
+        {
+            break;
+        }
+        else
+        {
+            movechar(ch);
+        }
+
+        skipWhitespace();
     }
     block->attrCount = i;
-    return ch;
 }
 
 ///!!! fix below function
@@ -347,7 +377,8 @@ char readAttributes(Block *block)
 Block *readBlocks()
 {
 
-    char ch = skipWhitespace();
+    skipWhitespace();
+    char ch = movechar();
     Str commandStr;
     Block *block;
     Block *prev = nullptr;
@@ -371,15 +402,14 @@ Block *readBlocks()
                     break;
                 }
                 i++;
-                ch = getchar();
+                ch = movechar();
             }
             return block;
         }
-        (*(block->selectors)) += ch;
+        movechar(ch);
         readSelectors(block);
-        ch = readAttributes(block);
-        ch = getchar();
-
+        readAttributes(block);
+        skipWhitespace();
         prev = block;
     }
 }
@@ -390,7 +420,8 @@ char readCommand(Str &arg1, Str &arg2)
 {
 
     int i = 0;
-    char ch = skipWhitespace();
+    skipWhitespace();
+    char ch = movechar();
 
     if (ch == COMMANDSECTIONCOUNT)
     {
@@ -402,17 +433,18 @@ char readCommand(Str &arg1, Str &arg2)
     }
 
     arg1 += ch;
-    readTill(arg1, COMMANDARGSSEPARATOR); // return value of readtill will be COMMANDARGSSEPARATOR, it can ignored
+    readTill(arg1, COMMANDARGSSEPARATOR);
+    movechar();
 
-    char commandType = getchar();
-    getchar(); // get rid of COMMANDARGSSEPARATOR
+    char commandType = movechar();
+    movechar(); // get rid of COMMANDARGSSEPARATOR
 
-    ch = getchar(); // if last argument is COMMANDNOARG there is no need to read it
+    ch = movechar(); // if last argument is COMMANDNOARG there is no need to read it
     if (ch == COMMANDNOARG)
     {
         return COMMANDNOARG;
     }
-    arg1 += ch;
+    movechar(ch);
 
     readTill(arg2, ENDL);
     return commandType;
@@ -578,9 +610,6 @@ void executeCommands(Block *head, int blockCount, char command, const Str &arg1,
 
 int main()
 {
-    char c = getchar();
-
-    return 0;
     Block *head = readBlocks();
     int blockCount = head->countBlocks();
     Str arg1, arg2;
