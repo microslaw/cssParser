@@ -29,6 +29,10 @@
 #define TABULATOR '\t'
 #define COMMANDARGSSEPARATOR ','
 
+
+
+
+
 bool isWhiteSpace(char ch)
 {
     return ch == SPACE || ch == TABULATOR || ch == ENDL;
@@ -226,6 +230,23 @@ public:
         this->attributes = attr;
         this->attrCount = attrCount;
     }
+    int countBlocks()
+    {
+        Block *tmp = this;
+        int count = 1;
+        while (tmp->next != nullptr)
+        {
+            tmp = tmp->next;
+            count++;
+        }
+        tmp = this;
+        while (tmp->prev != nullptr)
+        {
+            tmp = tmp->prev;
+            count++;
+        }
+        return count;
+    }
 
     // accepts negative indexes
     Block *operator[](int index)
@@ -256,7 +277,7 @@ public:
     }
 };
 
-char readTill(Str buffor, char endChar, char endChar2 = NULLC)
+char readTill(Str &buffor, char endChar, char endChar2 = NULLC)
 {
     char ch = getchar();
     while (ch != endChar && ch != endChar2)
@@ -284,9 +305,14 @@ void readSelectors(Block *block)
     int i = 0;
 
     char ch = skipWhitespace();
+
+    if (ch != STARTBRACKET)
+    {
+        block->selectors[i] += ch;
+    }
     while (ch != STARTBRACKET)
     {
-        readTill(block->selectors[i], SELECTORSEPARATOR, STARTBRACKET);
+        ch = readTill((block->selectors)[i], SELECTORSEPARATOR, STARTBRACKET);
         // final ch value is ignored, It will always be STARTBRACKET
         i++;
     }
@@ -299,11 +325,13 @@ char readAttributes(Block *block)
     int i = 0;
     while (ch != ENDBRACKET)
     {
+        block->attributes[i].name += ch;
         readTill((block->attributes[i]).name, ATTRIBUTENAMEVALSEPARATOR);
         (block->attributes[i]).name.stripEnd();
         ch = skipWhitespace();
+        block->attributes[i].value += ch;
 
-        readTill((block->attributes[i]).value, ATTRIBUTENAMEVALSEPARATOR, ENDBRACKET);
+        readTill((block->attributes[i]).value, ATTRIBUTESEPARATOR, ENDBRACKET);
         block->attributes->value.stripEnd();
         ch = skipWhitespace();
         i++;
@@ -312,50 +340,52 @@ char readAttributes(Block *block)
     return ch;
 }
 
+///!!! fix below function
+
 // reads blocks and COMMANDSTART
-// if COMMANDSTART found returns true
-bool readBlocks(Block *block)
+// returns number of blocks read
+Block *readBlocks()
 {
+
     char ch = skipWhitespace();
     Str commandStr;
-    while (ch != COMMANDSTART[0])
+    Block *block;
+    Block *prev = nullptr;
+    while (true)
     {
-        readSelectors(block);
-        ch = readAttributes(block);
-    }
-    if (ch == NULLC)
-    {
-        // returning here means no commands
-        return;
-    }
-
-    commandStr += ch;
-    int i = 1;
-
-    //!!! do better input commandstart
-    while (COMMANDSTART[i] != NULLC)
-    {
-        if (ch == COMMANDSTART[i])
+        block = new Block(prev);
+        if (ch == COMMANDSTART[0])
         {
             commandStr += ch;
+            int i = 1;
+
+            //!!! do better input commandstart
+            while (COMMANDSTART[i] != NULLC)
+            {
+                if (ch == COMMANDSTART[i])
+                {
+                    commandStr += ch;
+                }
+                else
+                {
+                    break;
+                }
+                i++;
+                ch = getchar();
+            }
+            return block;
         }
-        else
-        {
-            commandStr = Str();
-            i = 0;
-        }
-        i++;
+        (*(block->selectors)) += ch;
+        readSelectors(block);
+        ch = readAttributes(block);
         ch = getchar();
-        if (ch == NULLC)
-        {
-            return false;
-        }
+
+        prev = block;
     }
-    return true;
 }
 
 // reads command type and arguments
-// returns command type
+// returns command type or null if NULLC or EOF is reached
 char readCommand(Str &arg1, Str &arg2)
 {
 
@@ -365,6 +395,10 @@ char readCommand(Str &arg1, Str &arg2)
     if (ch == COMMANDSECTIONCOUNT)
     {
         return COMMANDSECTIONCOUNT;
+    }
+    else if (ch == NULLC || ch == EOF)
+    {
+        return NULLC;
     }
 
     arg1 += ch;
@@ -544,12 +578,25 @@ void executeCommands(Block *head, int blockCount, char command, const Str &arg1,
 
 int main()
 {
+    char c = getchar();
 
+    return 0;
+    Block *head = readBlocks();
+    int blockCount = head->countBlocks();
+    Str arg1, arg2;
+    char commandType;
+    do
+    {
+        commandType = readCommand(arg1, arg2);
+        executeCommands(head, blockCount, commandType, arg1, arg2);
+    } while (commandType != NULLC);
+
+    return 0;
 }
 
 // co ma być w array T = 8
 // czy można używać klas
 // czy można używać realloc
 // czy w n,A,? trzeba usuwać duplikaty pomiędzy blokami
-
-// wczytywanie arg2 w readcommand w każdym przypadku
+// czy można includować listy
+// czu można używać ungetch
