@@ -146,7 +146,7 @@ void delBlock(Block *block)
 // adds NULLC at the end
 // if c is not NULL, it will stop reading when it finds c or NULLC
 // does not read \t
-char readTill(Str buffer, char endList[])
+char readTill(Str &buffer, char endList[])
 {
     int i = 0;
     int j = 0;
