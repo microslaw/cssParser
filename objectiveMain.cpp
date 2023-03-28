@@ -48,6 +48,18 @@ int movechar(char toPushBack = NULLC)
     return NULLC;
 }
 
+// returns true if skipped char
+bool skip(char toSkip)
+{
+    char ch = movechar();
+    if (ch == toSkip)
+    {
+        return true;
+    }
+    movechar(ch);
+    return false;
+}
+
 bool isWhiteSpace(char ch)
 {
     return ch == SPACE || ch == TABULATOR || ch == ENDL;
@@ -78,6 +90,10 @@ public:
 
     int length() const
     {
+        if (this->reservedSize == 0)
+        {
+            return 0;
+        }
         int i = 0;
         while (this->charList[i] != NULLC)
         {
@@ -368,10 +384,13 @@ void readSelectors(Block *block)
         readTill((block->selectors)[i], SELECTORSEPARATOR, STARTBRACKET);
         (block->selectors)[i].stripEnd();
         skipWhitespace();
-        if (movechar() == STARTBRACKET) // value returned by movechar will be either SELECTORSEPARATOR or STARTBRACKET, and can be ignored
+
+        if (skip(STARTBRACKET)) // value returned by movechar will be either SELECTORSEPARATOR or STARTBRACKET, and can be ignored
         {
             break;
         }
+        skip(SELECTORSEPARATOR);
+
         skipWhitespace();
         i++;
     }
@@ -381,32 +400,25 @@ void readSelectors(Block *block)
 void readAttributes(Block *block)
 {
     skipWhitespace();
-    char ch;
     int i = 0;
     while (true)
     {
         readTill((block->attributes[i]).name, ATTRIBUTENAMEVALSEPARATOR);
         (block->attributes[i]).name.stripEnd();
-        movechar(); // skip ATTRIBUTENAMEVALSEPARATOR
+        skip(ATTRIBUTENAMEVALSEPARATOR);
         skipWhitespace();
 
         readTill((block->attributes[i]).value, ATTRIBUTESEPARATOR, ENDBRACKET);
         block->attributes->value.stripEnd();
-        movechar(); // skip ATTRIBUTENAMEVALSEPARATOR
+        skip(ATTRIBUTENAMEVALSEPARATOR);
         skipWhitespace();
 
         i++;
 
-        ch = movechar();
-        if (ch == ENDBRACKET)
+        if (skip(ENDBRACKET))
         {
             break;
         }
-        else
-        {
-            movechar(ch);
-        }
-
         skipWhitespace();
     }
     block->attrCount = i;
@@ -418,41 +430,27 @@ void readAttributes(Block *block)
 // returns number of blocks read
 Block *readBlocks()
 {
-
-    skipWhitespace();
-    char ch = movechar();
     Str commandStr;
     Block *block;
     Block *prev = nullptr;
-    while (true)
+
+    skipWhitespace();
+    int i = 0;
+
+    while (!skip(COMMANDSTART[i]))
     {
         block = new Block(prev);
-        if (ch == COMMANDSTART[0])
-        {
-            commandStr += ch;
-            int i = 1;
-
-            //!!! do better input commandstart
-            while (COMMANDSTART[i] != NULLC)
-            {
-                if (ch == COMMANDSTART[i])
-                {
-                    commandStr += ch;
-                }
-                else
-                {
-                    break;
-                }
-                i++;
-                ch = movechar();
-            }
-            return block;
-        }
-        movechar(ch);
         readSelectors(block);
         readAttributes(block);
+        
         skipWhitespace();
         prev = block;
+        
+    }
+
+    while (COMMANDSTART[++i] != NULLC)
+    {
+        skip(COMMANDSTART[i]);
     }
 }
 
@@ -463,31 +461,25 @@ char readCommand(Str &arg1, Str &arg2)
 
     int i = 0;
     skipWhitespace();
-    char ch = movechar();
 
-    if (ch == COMMANDSECTIONCOUNT)
+    if (skip(COMMANDSECTIONCOUNT))
     {
         return COMMANDSECTIONCOUNT;
     }
-    else if (ch == NULLC || ch == EOF)
+    else if (skip(NULLC) || skip(EOF))
     {
         return NULLC;
     }
-
-    arg1 += ch;
     readTill(arg1, COMMANDARGSSEPARATOR);
-    movechar();
+    skip(COMMANDARGSSEPARATOR);
 
     char commandType = movechar();
-    movechar(); // get rid of COMMANDARGSSEPARATOR
+    skip(COMMANDARGSSEPARATOR);
 
-    ch = movechar(); // if last argument is COMMANDNOARG there is no need to read it
-    if (ch == COMMANDNOARG)
+    if (skip(COMMANDNOARG))
     {
-        return COMMANDNOARG;
+        return commandType;
     }
-    movechar(ch);
-
     readTill(arg2, ENDL);
     return commandType;
 }
@@ -666,7 +658,6 @@ int main()
 }
 
 // co ma być w array T = 8
-// czy można używać klas
 // czy można używać realloc
 // czy w n,A,? trzeba usuwać duplikaty pomiędzy blokami
 // czy można includować listy
