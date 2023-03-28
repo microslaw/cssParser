@@ -192,21 +192,63 @@ public:
     }
 };
 
+class Selector
+{
+public:
+    Str name;
+    Selector *next;
+
+    Selector(Selector *next = nullptr)
+    {
+        this->name = Str();
+        this->next = next;
+    }
+    Selector(Str name, Str valueSelector, Selector *next = nullptr)
+    {
+        this->name = name;
+        this->next = next;
+    }
+
+    void killChilden()
+    {
+        if (this->next != NULLC)
+        {
+            this->next->killChilden();
+        }
+        delete (this->next);
+    }
+
+    ~Selector()
+    {
+    }
+};
 class Attr
 {
 public:
     Str name;
     Str value;
+    Attr *next;
 
-    Attr()
+    Attr(Attr *next = nullptr)
     {
         this->name = Str();
         this->value = Str();
+        this->next = next;
     }
-    Attr(Str name, Str value)
+    Attr(Str name, Str valueAttr, Attr *next = nullptr)
     {
         this->name = name;
         this->value = value;
+        this->next = next;
+    }
+
+    void killChilden()
+    {
+        if (this->next != NULLC)
+        {
+            this->next->killChilden();
+        }
+        delete (this->next);
     }
 
     ~Attr()
@@ -214,19 +256,12 @@ public:
     }
 };
 
-class Block
+class BlockHolder
 {
-public:
-    Block *next;
-    Block *prev;
-
-    Str *selectors;
-    int selectorCount;
-
-    Attr *attributes;
-    int attrCount;
-
-    Block(Block *prev = nullptr, int selectorCount = T, int attrCount = T)
+    Block blocks[T];
+    BlockHolder *next;
+    BlockHolder *prev;
+    BlockHolder(BlockHolder *prev = nullptr, int selectorCount = T, int attrCount = T)
     {
 
         this->prev = prev;
@@ -236,18 +271,16 @@ public:
         {
             prev->next = this;
         }
-
-        Str *selectors = new Str[selectorCount];
-        this->selectors = selectors;
-        this->selectorCount = selectorCount;
-
-        Attr *attr = new Attr[attrCount];
-        this->attributes = attr;
-        this->attrCount = attrCount;
     }
-    int countBlocks()
+
+    void addBlock(Block &newBlock)
     {
-        Block *tmp = this;
+        
+    }
+
+    int countBlockHolders()
+    {
+        BlockHolder *tmp = this;
         int count = 1;
         while (tmp->next != nullptr)
         {
@@ -264,29 +297,38 @@ public:
     }
 
     // accepts negative indexes
-    Block *operator[](int index)
+
+    ~BlockHolder()
     {
-        Block *tmp = this;
-        if (index > 0)
-        {
-            for (int i = 0; i < index; i++)
-            {
-                tmp = tmp->next;
-            }
-            return tmp;
-        }
-        index *= (-1);
-        for (int i = 0; i < index; i++)
-        {
-            tmp = tmp->prev;
-        }
-        return tmp;
+        this->prev->next = this->next;
+        this->next->prev = this->prev;
+    }
+};
+
+class Block
+{
+public:
+    Str *selectors;
+    int selectorCount;
+
+    Attr *attributes;
+    int attrCount;
+
+    Block(Block *prev = nullptr, int selectorCount = T, int attrCount = T)
+    {
+
+        Str *selectors = new Str[selectorCount];
+        this->selectors = selectors;
+        this->selectorCount = selectorCount;
+
+        Attr *attr = new Attr[attrCount];
+        this->attributes = attr;
+        this->attrCount = attrCount;
     }
 
     ~Block()
     {
-        this->prev->next = this->next;
-        this->next->prev = this->prev;
+
         delete this->selectors;
         delete this->attributes;
     }
@@ -356,7 +398,7 @@ void readAttributes(Block *block)
         i++;
 
         ch = movechar();
-        if ( ch == ENDBRACKET)
+        if (ch == ENDBRACKET)
         {
             break;
         }
