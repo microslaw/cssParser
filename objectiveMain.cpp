@@ -30,7 +30,7 @@
 #define COMMANDARGSSEPARATOR ','
 
 // getchar but can return char if it is passed as argument
-int movechar(char toPushBack = NULLC)
+char movechar(char toPushBack = NULLC)
 {
     static char buffer[STRLEN];
     static int bufferLen = 0;
@@ -38,7 +38,7 @@ int movechar(char toPushBack = NULLC)
     {
         if (bufferLen == 0)
         {
-            return getchar();
+            return (int)getchar();
         }
         return buffer[--bufferLen];
     }
@@ -121,11 +121,11 @@ public:
         return !(this->length());
     }
 
-    void copyToCharlist(char *charList) const
+    void copyToCharlist(char *newCopy) const
     {
         for (int i = 0; this->charList[i] != NULLC; i++)
         {
-            charList[i] = this->charList[i];
+            newCopy[i] = this->charList[i];
         }
     }
 
@@ -183,6 +183,11 @@ public:
         return this->charList[index];
     }
 
+    char operator[](int index) const
+    {
+        return this->charList[index];
+    }
+
     bool operator==(Str right)
     {
         if (this->length() != right.length())
@@ -208,6 +213,34 @@ public:
     }
 };
 
+void print(Str &toPrint)
+{
+    int len = toPrint.length();
+    for (int i = 0; i < len; i++)
+    {
+        putchar(toPrint[i]);
+    }
+}
+
+Str intToStr(int number)
+{
+    Str strNumber;
+    char charDigit;
+    while (number > 0)
+    {
+        charDigit = (char)((number % 10) + (int)'0');
+        strNumber += charDigit;
+        number /= 10;
+    }
+    return strNumber;
+}
+
+void print(int toPrint)
+{
+    Str strToPrint = intToStr(toPrint);
+    print(strToPrint);
+}
+
 class Selector
 {
 public:
@@ -225,11 +258,22 @@ public:
         this->next = next;
     }
 
-    void killChilden()
+    // allows to move forward in a list
+    Selector &operator[](int index)
     {
-        if (this->next != NULLC)
+        Selector *tmp = this;
+        for (int i = 0; i < index; i++)
         {
-            this->next->killChilden();
+            tmp = tmp->next;
+        }
+        return *tmp;
+    }
+
+    void killChildren()
+    {
+        if (this->next != nullptr)
+        {
+            this->next->killChildren();
         }
         delete (this->next);
     }
@@ -258,9 +302,19 @@ public:
         this->next = next;
     }
 
+    Attr &operator[](int index)
+    {
+        Attr *tmp = this;
+        for (int i = 0; i < index; i++)
+        {
+            tmp = tmp->next;
+        }
+        return *tmp;
+    }
+
     void killChilden()
     {
-        if (this->next != NULLC)
+        if (this->next != nullptr)
         {
             this->next->killChilden();
         }
@@ -272,12 +326,89 @@ public:
     }
 };
 
+class Block
+{
+public:
+    Selector *selectorHead;
+    Selector *selectorTail;
+    Attr *attributeHead;
+    Attr *attributeTail;
+
+    Block(Selector *selectors = nullptr, Attr *attributes = nullptr)
+    {
+        this->selectorHead = selectors;
+        this->attributeHead = attributes;
+    }
+
+    void addSelector(Selector *newSelector)
+    {
+        if (this->selectorHead == nullptr)
+        {
+            this->selectorTail = newSelector;
+            this->selectorHead = newSelector;
+        }
+        else
+        {
+            this->selectorTail->next = newSelector;
+            this->selectorTail = newSelector;
+        }
+    }
+
+    int countSelectors()
+    {
+        Selector *tmp = (this->selectorHead);
+        int i;
+        for (i = 0; tmp != nullptr; i++)
+        {
+            tmp = tmp->next;
+        }
+        return i;
+    }
+
+    void addAttribute(Attr *newAttr)
+    {
+        if (this->attributeHead == nullptr)
+        {
+            this->attributeTail = newAttr;
+            this->attributeHead = newAttr;
+        }
+
+        this->attributeTail->next = newAttr;
+        this->attributeTail = newAttr;
+    }
+
+    int countAttributes() const
+    {
+        Attr *tmp = (this->attributeHead);
+        int i;
+        for (i = 0; tmp != nullptr; i++)
+        {
+            tmp = tmp->next;
+        }
+        return i;
+    }
+
+    bool isEmpty() const
+    {
+        if (this->attributeHead == nullptr)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    ~Block()
+    {
+    }
+};
+
 class BlockHolder
 {
+public:
     Block blocks[T];
     BlockHolder *next;
     BlockHolder *prev;
-    BlockHolder(BlockHolder *prev = nullptr, int selectorCount = T, int attrCount = T)
+    BlockHolder(BlockHolder *prev = nullptr)
     {
 
         this->prev = prev;
@@ -289,64 +420,68 @@ class BlockHolder
         }
     }
 
-    void addBlock(Block &newBlock)
+    // will add new block in first empty place
+
+    Block *addBlock(Block &newBlock)
     {
-        
+        for (int i = 0; i < T; i++)
+        {
+            if (blocks[i].isEmpty())
+            {
+                blocks[i] = newBlock; ///!!! move constructor?
+                return blocks + i;
+            }
+        }
+        if (this->next == nullptr)
+        {
+            this->next = new BlockHolder(this);
+        }
+        return this->next->addBlock(newBlock);
     }
 
-    int countBlockHolders()
+    Block *addBlock()
     {
-        BlockHolder *tmp = this;
-        int count = 1;
-        while (tmp->next != nullptr)
-        {
-            tmp = tmp->next;
-            count++;
-        }
-        tmp = this;
-        while (tmp->prev != nullptr)
-        {
-            tmp = tmp->prev;
-            count++;
-        }
-        return count;
+        Block newBlock;
+        Block *pBlock = addBlock(newBlock);
+        return pBlock;
     }
 
-    // accepts negative indexes
+    int countBlocks()
+    {
+        int blockCount = 0;
+        for (int i = 0; i < T; i++)
+        {
+            if (!(blocks[i].isEmpty()))
+            {
+                blockCount++;
+            }
+        }
+        return blockCount;
+    }
+
+    // returns reference to block. can jump to another nodes, skips empty blocks
+    Block &operator[](int index)
+    {
+        if (index > this->countBlocks())
+        {
+            index -= this->countBlocks();
+            return ((*(this->next))[index]);
+        }
+        int i;
+        for (i = 0; i < index; i++)
+        {
+            if ((this->blocks)[i].isEmpty())
+            {
+                i--;
+            }
+        }
+        return (this->blocks)[i];
+    }
 
     ~BlockHolder()
     {
         this->prev->next = this->next;
         this->next->prev = this->prev;
-    }
-};
-
-class Block
-{
-public:
-    Str *selectors;
-    int selectorCount;
-
-    Attr *attributes;
-    int attrCount;
-
-    Block(Block *prev = nullptr, int selectorCount = T, int attrCount = T)
-    {
-
-        Str *selectors = new Str[selectorCount];
-        this->selectors = selectors;
-        this->selectorCount = selectorCount;
-
-        Attr *attr = new Attr[attrCount];
-        this->attributes = attr;
-        this->attrCount = attrCount;
-    }
-
-    ~Block()
-    {
-
-        delete this->selectors;
-        delete this->attributes;
     }
 };
 
@@ -373,16 +508,16 @@ void skipWhitespace()
 }
 
 // after execution text left in ostream does not have STARTBRACKET
-void readSelectors(Block *block)
+void readSelectors(Block &block)
 {
-    int i = 0;
-
     skipWhitespace();
 
     while (true)
     {
-        readTill((block->selectors)[i], SELECTORSEPARATOR, STARTBRACKET);
-        (block->selectors)[i].stripEnd();
+        block.addSelector(new Selector);
+        Str &selectorName = block.selectorTail->name;
+        readTill(selectorName, SELECTORSEPARATOR, STARTBRACKET);
+        selectorName.stripEnd();
         skipWhitespace();
 
         if (skip(STARTBRACKET)) // value returned by movechar will be either SELECTORSEPARATOR or STARTBRACKET, and can be ignored
@@ -392,28 +527,28 @@ void readSelectors(Block *block)
         skip(SELECTORSEPARATOR);
 
         skipWhitespace();
-        i++;
     }
-    block->selectorCount = i;
 }
 
-void readAttributes(Block *block)
+void readAttributes(Block &block)
 {
     skipWhitespace();
-    int i = 0;
     while (true)
     {
-        readTill((block->attributes[i]).name, ATTRIBUTENAMEVALSEPARATOR);
-        (block->attributes[i]).name.stripEnd();
+        block.addAttribute(new Attr);
+        Str &attrName = block.attributeTail->name;
+        Str &attrValue = block.attributeTail->value;
+
+        readTill(attrName, ATTRIBUTENAMEVALSEPARATOR);
+        attrName.stripEnd();
         skip(ATTRIBUTENAMEVALSEPARATOR);
         skipWhitespace();
 
-        readTill((block->attributes[i]).value, ATTRIBUTESEPARATOR, ENDBRACKET);
-        block->attributes->value.stripEnd();
+        readTill(attrValue, ATTRIBUTESEPARATOR, ENDBRACKET);
+        skip(ATTRIBUTESEPARATOR);
+        attrValue.stripEnd();
         skip(ATTRIBUTENAMEVALSEPARATOR);
         skipWhitespace();
-
-        i++;
 
         if (skip(ENDBRACKET))
         {
@@ -421,44 +556,40 @@ void readAttributes(Block *block)
         }
         skipWhitespace();
     }
-    block->attrCount = i;
 }
 
 ///!!! fix below function
 
 // reads blocks and COMMANDSTART
 // returns number of blocks read
-Block *readBlocks()
+int readBlocks(BlockHolder *holder)
 {
     Str commandStr;
-    Block *block;
-    Block *prev = nullptr;
 
     skipWhitespace();
     int i = 0;
 
     while (!skip(COMMANDSTART[i]))
     {
-        block = new Block(prev);
-        readSelectors(block);
-        readAttributes(block);
-        
+        Block *block = holder->addBlock();
+        readSelectors(*block);
+        readAttributes(*block);
+
         skipWhitespace();
-        prev = block;
-        
+        i++;
     }
 
     while (COMMANDSTART[++i] != NULLC)
     {
         skip(COMMANDSTART[i]);
     }
+    return i;
 }
 
 // reads command type and arguments
 // returns command type or null if NULLC or EOF is reached
 char readCommand(Str &arg1, Str &arg2)
 {
-
     int i = 0;
     skipWhitespace();
 
@@ -484,84 +615,99 @@ char readCommand(Str &arg1, Str &arg2)
     return commandType;
 }
 
-void sCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
+void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &arg2)
 {
     if (arg1.isInt() && arg2.isEmpty())
     {
         int i = arg1.toInt();
         if (i <= blockCount)
         {
-            printf("%d", head[arg1.toInt() - 1].selectorCount + 1);
+            print(head[arg1.toInt()].countSelectors());
         }
         return;
     }
+
     else if (arg1.isInt() && arg2.isInt())
     {
-        int i = arg1.toInt();
-        int j = arg2.toInt();
-        if (i <= blockCount && j <= head[i - 1].selectorCount)
+        int i = arg1.toInt() - 1;
+        int j = arg2.toInt() - 1;
+        if (i <= blockCount && j <= head[i].countSelectors())
         {
-            printf("%s", head[i - 1].selectors[j - 1].charList);
+            print(head[i].selectorHead[j].name);
         }
         return;
     }
+
     else if (arg2.isEmpty())
     {
+        int selectorsFound = 0;
         int selectorCount = 0;
         for (int i = 0; i < blockCount; i++)
         {
-            if (head[i].selectors[0] == arg1)
-            {
-                selectorCount++;
-            }
+            selectorCount = head[i].countSelectors();
+            for (int j = 0; j < selectorCount;)
+                if (head[i].selectorHead[j].name == arg1)
+                {
+                    selectorsFound++;
+                }
             i++;
         }
-        printf("%d", selectorCount);
+        print(selectorCount);
     }
 }
 
-void aCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
+void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &arg2)
 {
     if (arg1.isInt() && arg2.isEmpty())
     {
-        int i = arg1.toInt();
+        int i = arg1.toInt() - 1;
         if (i <= blockCount)
         {
-            printf("%d", head[arg1.toInt() - 1].attrCount + 1);
+            print(head[i].countAttributes() + 1);
         }
         return;
     }
     else if (arg1.isInt())
     {
-        int i = arg1.toInt();
+        int i = arg1.toInt() - 1;
+        int attrCount;
+        int lastI, lastJ;
         if (i <= blockCount)
         {
-            for (int j = 0; j < head[i - 1].attrCount; j++)
+            attrCount = head[i].countAttributes();
+            for (int j = 0; j < attrCount; j++)
             {
-                if (head[i - 1].attributes[j].name == arg2)
+                if (head[i].attributeHead[j].name == arg2)
                 {
-                    printf("%s", head[i - 1].attributes[j].value.charList);
+                    lastI = i;
+                    lastJ = j;
                 }
             }
         }
+        print(head[lastI].attributeHead[lastJ].value);
         return;
     }
     ///!!! remove when reading
     else if (arg2.isEmpty())
     {
-        int selectorCount = 0;
+        int attrFound = 0;
+        int attrCount;
+        int lastI, lastJ;
+
         for (int i = 0; i < blockCount; i++)
         {
-            for (int j = 0; j < head[i].attrCount; j++)
+            attrCount = head[i].countAttributes();
+
+            for (int j = 0; j < attrCount; j++)
             {
-                if (head[i].attributes[j].name == arg1)
+                if (head[i].attributeHead[j].name == arg1)
                 {
-                    selectorCount++;
+                    attrFound++;
                 }
             }
             i++;
         }
-        printf("%d", selectorCount);
+        print(attrFound);
     }
     else
     {
@@ -569,15 +715,18 @@ void aCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
     }
 }
 
-void eCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
+void eCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &arg2)
 {
     int lastI = -1;
     int lastJ = -1;
+    int selectorCount;
     for (int i = 0; i < blockCount; i++)
     {
-        for (int j = 0; j < (head[i]).selectorCount; j++)
+        selectorCount = head[i].countSelectors();
+
+        for (int j = 0; j < selectorCount; j++)
         {
-            if ((head[i]).selectors[j] == arg1)
+            if (head[i].selectorHead[j].name == arg1)
             {
                 lastI = i;
                 lastJ = j;
@@ -586,38 +735,39 @@ void eCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
     }
     if (lastI != -1)
     {
-        Str val = (head[lastI]).attributes[lastJ].value;
-        printf("%s", val);
+        print(head[lastI].attributeHead[lastJ].value);
     }
 }
 
-void dCommands(Block *head, int blockCount, const Str &arg1, const Str &arg2)
+void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &arg2)
 {
     if (arg1.isInt() && arg2.isEmpty())
     {
-        delete (*head)[arg1.toInt() - 1];
-        printf("deleted");
+
+        delete &(head[arg1.toInt() - 1]);
+        // print("deleted");
     }
     else if (arg1.isInt())
     {
-        Block *section = (*head)[arg1.toInt() - 1];
-        for (int i = 0; i < section->attrCount; i++)
+        int i = arg1.toInt();
+        int attrCount = head[i].countAttributes();
+
+        for (int j = 0; j < attrCount; j++)
         {
-            if ((section->attributes)[i].name == arg2)
+            if (head[i].attributeHead[j].name == arg2)
             {
-                delete ((section->attributes) + i);
+                ///!!!delete ((section->attributes) + i);
             }
         }
-        printf("deleted");
-        section->attrCount--;
+        // print("deleted");
     }
     else
     {
-        printf("error");
+        // print("error");
     }
 }
 
-void executeCommands(Block *head, int blockCount, char command, const Str &arg1, const Str &arg2)
+void executeCommands(BlockHolder &head, int &blockCount, char command, const Str &arg1, const Str &arg2)
 {
     switch (command)
     {
@@ -644,21 +794,20 @@ void executeCommands(Block *head, int blockCount, char command, const Str &arg1,
 
 int main()
 {
-    Block *head = readBlocks();
-    int blockCount = head->countBlocks();
+    BlockHolder *head = new BlockHolder;
+    int blockCount = readBlocks(head);
     Str arg1, arg2;
     char commandType;
     do
     {
         commandType = readCommand(arg1, arg2);
-        executeCommands(head, blockCount, commandType, arg1, arg2);
+        executeCommands(*head, blockCount, commandType, arg1, arg2);
     } while (commandType != NULLC);
 
     return 0;
 }
 
-// co ma być w array T = 8
-// czy można używać realloc
-// czy w n,A,? trzeba usuwać duplikaty pomiędzy blokami
-// czy można includować listy
-// czu można używać ungetch
+// killNext w listach pojedyńczych
+// lastI = -1
+
+//adds one extra empty selector
