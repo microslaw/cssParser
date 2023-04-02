@@ -142,8 +142,15 @@ public:
     Str(const Str &old)
     {
         this->reservedSize = old.reservedSize;
-        this->charList = (char *)malloc(this->reservedSize);
-        old.copyTo(this->charList);
+        if (this->reservedSize != 0)
+        {
+            this->charList = (char *)malloc(this->reservedSize);
+            old.copyTo(this->charList);
+        }
+        else
+        {
+            this->charList = nullptr;
+        }
     }
     Str(Str &&old)
     {
@@ -305,6 +312,13 @@ public:
     }
 };
 
+/// !!! move to other swaps
+
+void swap(Str &left, Str &right)
+{
+    left.swapWith(right);
+}
+
 Str intToStr(int number)
 {
     Str strNumber;
@@ -377,7 +391,12 @@ void printResult(const Str &arg1, char commandType, const Str &arg2, const Str &
     }
 
     /// !!! ugly
-    Str a = getCOMMANDRESULTSEPERATORSTR();  
+    static Str a;
+    if (a.length() == 0)
+    {
+        a = getCOMMANDRESULTSEPERATORSTR();
+    }
+
     print(a);
     print(result, ENDL);
 }
@@ -449,9 +468,48 @@ public:
         this->value = value;
         this->next = next;
     }
+    Attr(const Attr &right)
+    {
+        this->name = right.name;
+        this->value = right.value;
+        this->next = right.next;
+    }
+
+    Attr(Attr &&right)
+    {
+        this->name = right.name;
+        this->value = right.value;
+        this->next = right.next;
+    }
+
+    Attr &operator=(const Attr &right)
+    {
+        Attr tmp(right);
+        swapWith(tmp);
+
+        return *this;
+    }
+
+    Attr &operator=(Attr &&right)
+    {
+        Attr tmp(right);
+        swapWith(tmp);
+
+        return *this;
+    }
+
+    void swapWith(Attr &right)
+    {
+        swap(this->name, right.name);
+        Attr *tmp = this->next;
+        this->next = right.next;
+        right.next = tmp;
+    }
 
     Attr &operator[](int index)
     {
+        skip('g');
+        int a = 8;
         Attr *tmp = this;
         for (int i = 0; i < index; i++)
         {
@@ -460,11 +518,11 @@ public:
         return *tmp;
     }
 
-    void killChilden()
+    void killChildren()
     {
         if (this->next != nullptr)
         {
-            this->next->killChilden();
+            this->next->killChildren();
         }
         delete (this->next);
     }
@@ -610,6 +668,7 @@ public:
     }
 
     // returns reference to block. can jump to another nodes, skips empty blocks
+    // !!! optimize moving between blocks
     Block &operator[](int index)
     {
         if (index > this->countBlocks())
@@ -835,8 +894,11 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
             attrCount = head[i].countAttributes();
             for (int j = 0; j < attrCount; j++)
             {
-                Attr a = head[i].attributeHead[j];
-                if (a.name == arg2)
+                Attr *ptr = head[i].attributeHead;
+                Str a;
+                Attr b = ptr[j];
+                a = ptr[j].name;
+                if (head[i].attributeHead[j].name == arg2)
                 {
                     lastI = i;
                     lastJ = j;
