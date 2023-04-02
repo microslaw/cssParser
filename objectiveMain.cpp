@@ -27,9 +27,40 @@
 #define ATTRIBUTESEPARATOR ';'
 #define SPACE ' '
 #define TABULATOR '\t'
+#define ESCAPECHAR '\r'
 #define COMMANDARGSSEPARATOR ','
 
+#define COMMANDRESULTSEPERATOR " == "
+
+// class Str
+// {
+// public:
+//     char *charList;
+//     // reservedSize includes NULLC (minimum is 1), if 0 no memory allocated
+//     int reservedSize;
+
+//     // size excludes NULLC
+//     Str(int size = 0, Str *str = nullptr);
+//     Str(const Str &old);
+//     Str(Str &&old);
+//     Str &operator=(const Str &right);
+//     Str &operator=(Str &&right);
+//     int length() const;
+//     void stripEnd();
+//     bool isEmpty() const;
+//     void copyTo(char *newCopy) const;
+//     bool isInt() const;
+//     int toInt() const;
+//     Str &operator+=(char ch);
+//     char &operator[](int index);
+//     char operator[](int index) const;
+//     bool operator==(const Str &right);
+
+//     ~Str();
+// };
+
 // getchar but can return char if it is passed as argument
+
 char movechar(char toPushBack = NULLC)
 {
     static char buffer[STRLEN];
@@ -62,7 +93,21 @@ bool skip(char toSkip)
 
 bool isWhiteSpace(char ch)
 {
-    return ch == SPACE || ch == TABULATOR || ch == ENDL;
+    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR;
+}
+
+void swap(int &first, int &second)
+{
+    int tmp = first;
+    first = second;
+    second = tmp;
+}
+
+void swap(char *&first, char *&second)
+{
+    char *tmp = first;
+    first = second;
+    second = tmp;
 }
 
 class Str
@@ -83,9 +128,42 @@ public:
                 this->charList = nullptr;
                 return;
             }
-            this->charList = new char[size];
-            this->charList[size] = NULLC;
+            this->charList = (char *)malloc(size * sizeof(char));
+            this->charList[size - 1] = NULLC;
         }
+    }
+
+    void swapWith(Str &second)
+    {
+        swap((*this).reservedSize, second.reservedSize);
+        swap((*this).charList, second.charList);
+    }
+
+    Str(const Str &old)
+    {
+        this->reservedSize = old.reservedSize;
+        this->charList = (char *)malloc(this->reservedSize);
+        old.copyTo(this->charList);
+    }
+    Str(Str &&old)
+    {
+        this->reservedSize = old.reservedSize;
+        this->charList = old.charList;
+    }
+
+    // !!! prefferably would use swap here
+    Str &operator=(const Str &right)
+    {
+        Str tmp(right);
+        swapWith(tmp);
+        return *this;
+    }
+
+    Str &operator=(Str &&right)
+    {
+        Str tmp(right);
+        swapWith(tmp);
+        return *this;
     }
 
     int length() const
@@ -118,15 +196,21 @@ public:
 
     bool isEmpty() const
     {
-        return !(this->length());
+        return (this->reservedSize == 0);
     }
 
-    void copyToCharlist(char *newCopy) const
+    void copyTo(char *newCopy) const
     {
-        for (int i = 0; this->charList[i] != NULLC; i++)
+        if (this->isEmpty())
+        {
+            return;
+        }
+        int i;
+        for (i = 0; this->charList[i] != NULLC; i++)
         {
             newCopy[i] = this->charList[i];
         }
+        newCopy[i] = NULLC;
     }
 
     bool isInt() const
@@ -156,6 +240,13 @@ public:
         return result;
     }
 
+    void erase()
+    {
+        this->~Str();
+        this->charList = nullptr;
+        this->reservedSize = 0;
+    }
+
     Str &operator+=(char ch)
     {
         if (this->reservedSize == 0)
@@ -168,7 +259,7 @@ public:
         {
             this->reservedSize += STRLEN;
             char *tmp = (char *)realloc(this->charList, this->reservedSize);
-            this->copyToCharlist(tmp);
+            // this->copyTo(tmp);
             this->charList = tmp;
         }
 
@@ -188,13 +279,14 @@ public:
         return this->charList[index];
     }
 
-    bool operator==(Str right)
+    bool operator==(const Str &right)
     {
-        if (this->length() != right.length())
+        int len = this->length();
+        if (len != right.length())
         {
             return false;
         }
-        for (int i = 0; i < this->length(); i++)
+        for (int i = 0; i < len; i++)
         {
             if (this->charList[i] != right.charList[i])
             {
@@ -213,15 +305,6 @@ public:
     }
 };
 
-void print(Str &toPrint)
-{
-    int len = toPrint.length();
-    for (int i = 0; i < len; i++)
-    {
-        putchar(toPrint[i]);
-    }
-}
-
 Str intToStr(int number)
 {
     Str strNumber;
@@ -235,10 +318,74 @@ Str intToStr(int number)
     return strNumber;
 }
 
-void print(int toPrint)
+Str getCOMMANDRESULTSEPERATORSTR()
+{
+    static Str COMMANDRESULTSEPERATORSTR;
+    static int i = 0;
+    if (i == 0)
+    {
+        while (COMMANDRESULTSEPERATOR[i] != NULLC)
+        {
+            COMMANDRESULTSEPERATORSTR += COMMANDRESULTSEPERATOR[i++];
+        }
+    }
+    return COMMANDRESULTSEPERATORSTR;
+}
+
+void print(const Str &toPrint, char ending = NULLC)
+{
+    int len = toPrint.length();
+    for (int i = 0; i < len; i++)
+    {
+        putchar(toPrint[i]);
+    }
+    if (ending != NULLC)
+    {
+        putchar(ending);
+    }
+}
+
+void print(int toPrint, char ending = NULLC)
 {
     Str strToPrint = intToStr(toPrint);
-    print(strToPrint);
+    print(strToPrint, ending);
+}
+
+void print(char toPrint, char ending = NULLC)
+{
+    putchar(toPrint);
+    if (ending != NULLC)
+    {
+        putchar(ending);
+    }
+}
+
+void printResult(const Str &arg1, char commandType, const Str &arg2, const Str &result)
+{
+    if (commandType != COMMANDSECTIONCOUNT)
+    {
+        print(arg1, COMMANDARGSSEPARATOR);
+        print(commandType, COMMANDARGSSEPARATOR);
+        if (arg2.isEmpty())
+        {
+            print(COMMANDNOARG);
+        }
+        else
+        {
+            print(arg2);
+        }
+    }
+
+    /// !!! ugly
+    Str a = getCOMMANDRESULTSEPERATORSTR();  
+    print(a);
+    print(result, ENDL);
+}
+
+void printResult(const Str &arg1, char commandType, const Str &arg2, const int &result)
+{
+    Str resultStr = intToStr(result);
+    printResult(arg1, commandType, arg2, resultStr);
 }
 
 class Selector
@@ -282,6 +429,7 @@ public:
     {
     }
 };
+
 class Attr
 {
 public:
@@ -402,10 +550,11 @@ public:
     }
 };
 
+///!!! half
 class BlockHolder
 {
 public:
-    Block blocks[T];
+    Block *blocks;
     BlockHolder *next;
     BlockHolder *prev;
     BlockHolder(BlockHolder *prev = nullptr)
@@ -418,6 +567,7 @@ public:
         {
             prev->next = this;
         }
+        this->blocks = new Block[T];
     }
 
     // will add new block in first empty place
@@ -482,6 +632,7 @@ public:
     {
         this->prev->next = this->next;
         this->next->prev = this->prev;
+        delete this->blocks;
     }
 };
 
@@ -559,7 +710,6 @@ void readAttributes(Block &block)
 }
 
 ///!!! fix below function
-
 // reads blocks and COMMANDSTART
 // returns number of blocks read
 int readBlocks(BlockHolder *holder)
@@ -568,6 +718,7 @@ int readBlocks(BlockHolder *holder)
 
     skipWhitespace();
     int i = 0;
+    int j = 0;
 
     while (!skip(COMMANDSTART[i]))
     {
@@ -579,9 +730,13 @@ int readBlocks(BlockHolder *holder)
         i++;
     }
 
-    while (COMMANDSTART[++i] != NULLC)
+    while (COMMANDSTART[++j] != NULLC)
     {
-        skip(COMMANDSTART[i]);
+        if (skip(COMMANDSTART[j]))
+        {
+            int a = 7;
+        }
+        int a = 7;
     }
     return i;
 }
@@ -590,6 +745,8 @@ int readBlocks(BlockHolder *holder)
 // returns command type or null if NULLC or EOF is reached
 char readCommand(Str &arg1, Str &arg2)
 {
+    arg1.erase();
+    arg2.erase();
     int i = 0;
     skipWhitespace();
 
@@ -622,7 +779,7 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         int i = arg1.toInt();
         if (i <= blockCount)
         {
-            print(head[arg1.toInt()].countSelectors());
+            printResult(arg1, COMMANDSELECTORS, arg2, head[arg1.toInt()].countSelectors());
         }
         return;
     }
@@ -631,9 +788,9 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     {
         int i = arg1.toInt() - 1;
         int j = arg2.toInt() - 1;
-        if (i <= blockCount && j <= head[i].countSelectors())
+        if (i < blockCount && j < head[i].countSelectors())
         {
-            print(head[i].selectorHead[j].name);
+            printResult(arg1, COMMANDSELECTORS, arg2, head[i].selectorHead[j].name);
         }
         return;
     }
@@ -652,7 +809,7 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
                 }
             i++;
         }
-        print(selectorCount);
+        printResult(arg1, COMMANDSELECTORS, arg2, selectorCount);
     }
 }
 
@@ -663,7 +820,7 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         int i = arg1.toInt() - 1;
         if (i <= blockCount)
         {
-            print(head[i].countAttributes() + 1);
+            printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].countAttributes() + 1);
         }
         return;
     }
@@ -671,20 +828,25 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     {
         int i = arg1.toInt() - 1;
         int attrCount;
-        int lastI, lastJ;
+        int lastI = -1;
+        int lastJ = -1;
         if (i <= blockCount)
         {
             attrCount = head[i].countAttributes();
             for (int j = 0; j < attrCount; j++)
             {
-                if (head[i].attributeHead[j].name == arg2)
+                Attr a = head[i].attributeHead[j];
+                if (a.name == arg2)
                 {
                     lastI = i;
                     lastJ = j;
                 }
             }
         }
-        print(head[lastI].attributeHead[lastJ].value);
+        if (lastI != -1)
+        {
+            printResult(arg1, COMMANDATTRIBUTES, arg2, head[lastI].attributeHead[lastJ].value);
+        }
         return;
     }
     ///!!! remove when reading
@@ -707,11 +869,7 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
             }
             i++;
         }
-        print(attrFound);
-    }
-    else
-    {
-        printf("error");
+        printResult(arg1, COMMANDATTRIBUTES, arg2, attrFound);
     }
 }
 
@@ -735,7 +893,7 @@ void eCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     }
     if (lastI != -1)
     {
-        print(head[lastI].attributeHead[lastJ].value);
+        printResult(arg1, COMMANDSEARCH, arg2, head[lastI].attributeHead[lastJ].value);
     }
 }
 
@@ -771,20 +929,20 @@ void executeCommands(BlockHolder &head, int &blockCount, char command, const Str
 {
     switch (command)
     {
-    case 'S':
+    case COMMANDSELECTORS:
         sCommands(head, blockCount, arg1, arg2);
         break;
-    case 'A':
+    case COMMANDATTRIBUTES:
         aCommands(head, blockCount, arg1, arg2);
         break;
-    case 'E':
+    case COMMANDSEARCH:
         eCommands(head, blockCount, arg1, arg2);
         break;
-    case 'D':
+    case COMMANDDELETE:
         dCommands(head, blockCount, arg1, arg2);
         break;
-    case '?':
-        printf("%d", blockCount);
+    case COMMANDSECTIONCOUNT:
+        printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
         break;
     default:
         printf("error");
@@ -807,7 +965,8 @@ int main()
     return 0;
 }
 
+// !!!\r
+
 // killNext w listach pojedyńczych
 // lastI = -1
-
-//adds one extra empty selector
+// print only in str
