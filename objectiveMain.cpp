@@ -389,15 +389,19 @@ void printResult(const Str &arg1, char commandType, const Str &arg2, const Str &
             print(arg2);
         }
     }
-
-    /// !!! ugly
-    static Str a;
-    if (a.length() == 0)
+    else
     {
-        a = getCOMMANDRESULTSEPERATORSTR();
+        print(COMMANDSECTIONCOUNT);
     }
 
-    print(a);
+    /// !!! ugly
+    static Str COMMANDRESULTSEPERATORSTR;
+    if (COMMANDRESULTSEPERATORSTR.isEmpty())
+    {
+        COMMANDRESULTSEPERATORSTR = getCOMMANDRESULTSEPERATORSTR();
+    }
+
+    print(COMMANDRESULTSEPERATORSTR);
     print(result, ENDL);
 }
 
@@ -418,22 +422,13 @@ public:
         this->name = Str();
         this->next = next;
     }
-    Selector(Str name, Str valueSelector, Selector *next = nullptr)
+    Selector(Str name, Selector *next = nullptr)
     {
         this->name = name;
         this->next = next;
     }
 
     // allows to move forward in a list
-    Selector &operator[](int index)
-    {
-        Selector *tmp = this;
-        for (int i = 0; i < index; i++)
-        {
-            tmp = tmp->next;
-        }
-        return *tmp;
-    }
 
     void killChildren()
     {
@@ -465,7 +460,7 @@ public:
     Attr(Str name, Str valueAttr, Attr *next = nullptr)
     {
         this->name = name;
-        this->value = value;
+        this->value = valueAttr;
         this->next = next;
     }
     Attr(const Attr &right)
@@ -504,18 +499,6 @@ public:
         Attr *tmp = this->next;
         this->next = right.next;
         right.next = tmp;
-    }
-
-    Attr &operator[](int index)
-    {
-        skip('g');
-        int a = 8;
-        Attr *tmp = this;
-        for (int i = 0; i < index; i++)
-        {
-            tmp = tmp->next;
-        }
-        return *tmp;
     }
 
     void killChildren()
@@ -571,6 +554,17 @@ public:
         return i;
     }
 
+    // selector with given index must exist
+    Selector &getSelector(int index)
+    {
+        Selector *tmp = this->selectorHead;
+        while (index-- != 0)
+        {
+            tmp = tmp->next;
+        }
+        return *tmp;
+    }
+
     void addAttribute(Attr *newAttr)
     {
         if (this->attributeHead == nullptr)
@@ -594,6 +588,17 @@ public:
         return i;
     }
 
+    // selector with given index must exist
+    Attr &getAttr(int index)
+    {
+        Attr *tmp = this->attributeHead;
+        while (index-- != 0)
+        {
+            tmp = tmp->next;
+        }
+        return *tmp;
+    }
+
     bool isEmpty() const
     {
         if (this->attributeHead == nullptr)
@@ -615,6 +620,7 @@ public:
     Block *blocks;
     BlockHolder *next;
     BlockHolder *prev;
+
     BlockHolder(BlockHolder *prev = nullptr)
     {
 
@@ -671,17 +677,17 @@ public:
     // !!! optimize moving between blocks
     Block &operator[](int index)
     {
-        if (index > this->countBlocks())
+        int i = 0;
+        while (index != 0)
         {
-            index -= this->countBlocks();
-            return ((*(this->next))[index]);
-        }
-        int i;
-        for (i = 0; i < index; i++)
-        {
-            if ((this->blocks)[i].isEmpty())
+            if (!(this->blocks)[i].isEmpty())
             {
-                i--;
+                index--;
+            }
+            i++;
+            if (i >= T)
+            {
+                return (*(this->next))[index];
             }
         }
         return (this->blocks)[i];
@@ -691,7 +697,7 @@ public:
     {
         this->prev->next = this->next;
         this->next->prev = this->prev;
-        delete this->blocks;
+        delete (this->blocks);
     }
 };
 
@@ -793,9 +799,7 @@ int readBlocks(BlockHolder *holder)
     {
         if (skip(COMMANDSTART[j]))
         {
-            int a = 7;
         }
-        int a = 7;
     }
     return i;
 }
@@ -806,14 +810,13 @@ char readCommand(Str &arg1, Str &arg2)
 {
     arg1.erase();
     arg2.erase();
-    int i = 0;
     skipWhitespace();
 
     if (skip(COMMANDSECTIONCOUNT))
     {
         return COMMANDSECTIONCOUNT;
     }
-    else if (skip(NULLC) || skip(EOF))
+    else if (skip(NULLC) || skip(EOF) || skip('g'))
     {
         return NULLC;
     }
@@ -835,8 +838,8 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
 {
     if (arg1.isInt() && arg2.isEmpty())
     {
-        int i = arg1.toInt();
-        if (i <= blockCount)
+        int i = arg1.toInt() - 1;
+        if (i < blockCount)
         {
             printResult(arg1, COMMANDSELECTORS, arg2, head[arg1.toInt()].countSelectors());
         }
@@ -849,7 +852,7 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         int j = arg2.toInt() - 1;
         if (i < blockCount && j < head[i].countSelectors())
         {
-            printResult(arg1, COMMANDSELECTORS, arg2, head[i].selectorHead[j].name);
+            printResult(arg1, COMMANDSELECTORS, arg2, head[i].getSelector(j).name);
         }
         return;
     }
@@ -861,14 +864,15 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         for (int i = 0; i < blockCount; i++)
         {
             selectorCount = head[i].countSelectors();
-            for (int j = 0; j < selectorCount;)
-                if (head[i].selectorHead[j].name == arg1)
-                {
+
+            for (int j = 0; j < selectorCount; j++)
+            {
+                if(head[i].getSelector(j).name == arg1){
                     selectorsFound++;
                 }
-            i++;
+            }
         }
-        printResult(arg1, COMMANDSELECTORS, arg2, selectorCount);
+        printResult(arg1, COMMANDSELECTORS, arg2, selectorsFound);
     }
 }
 
@@ -877,9 +881,9 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     if (arg1.isInt() && arg2.isEmpty())
     {
         int i = arg1.toInt() - 1;
-        if (i <= blockCount)
+        if (i < blockCount)
         {
-            printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].countAttributes() + 1);
+            printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].countAttributes());
         }
         return;
     }
@@ -889,16 +893,13 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         int attrCount;
         int lastI = -1;
         int lastJ = -1;
-        if (i <= blockCount)
+        if (i < blockCount)
         {
             attrCount = head[i].countAttributes();
             for (int j = 0; j < attrCount; j++)
             {
-                Attr *ptr = head[i].attributeHead;
-                Str a;
-                Attr b = ptr[j];
-                a = ptr[j].name;
-                if (head[i].attributeHead[j].name == arg2)
+
+                if (head[i].getAttr(j).name == arg2)
                 {
                     lastI = i;
                     lastJ = j;
@@ -907,7 +908,7 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         }
         if (lastI != -1)
         {
-            printResult(arg1, COMMANDATTRIBUTES, arg2, head[lastI].attributeHead[lastJ].value);
+            printResult(arg1, COMMANDATTRIBUTES, arg2, head[lastI].getAttr(lastJ).value);
         }
         return;
     }
@@ -924,12 +925,11 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
 
             for (int j = 0; j < attrCount; j++)
             {
-                if (head[i].attributeHead[j].name == arg1)
+                if (head[i].getAttr(j).name == arg1)
                 {
                     attrFound++;
                 }
             }
-            i++;
         }
         printResult(arg1, COMMANDATTRIBUTES, arg2, attrFound);
     }
@@ -946,7 +946,7 @@ void eCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
 
         for (int j = 0; j < selectorCount; j++)
         {
-            if (head[i].selectorHead[j].name == arg1)
+            if (head[i].getSelector(j).name == arg1)
             {
                 lastI = i;
                 lastJ = j;
@@ -955,7 +955,7 @@ void eCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     }
     if (lastI != -1)
     {
-        printResult(arg1, COMMANDSEARCH, arg2, head[lastI].attributeHead[lastJ].value);
+        printResult(arg1, COMMANDSEARCH, arg2, head[lastI].getAttr(lastJ).value);
     }
 }
 
@@ -974,7 +974,7 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
 
         for (int j = 0; j < attrCount; j++)
         {
-            if (head[i].attributeHead[j].name == arg2)
+            if (head[i].getAttr(j).name == arg2)
             {
                 ///!!!delete ((section->attributes) + i);
             }
@@ -1007,7 +1007,7 @@ void executeCommands(BlockHolder &head, int &blockCount, char command, const Str
         printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
         break;
     default:
-        printf("error");
+        // printf("error");
         break;
     }
 }

@@ -1,26 +1,20 @@
-#breadcrumb 
+#dredddrumd 
 {
 	width: 80%;
 	font-size: 9pt;
 }
 
-h1, body {
+h1, dody {
 	min-width: 780px;
-	margin: 0;
-	padding: 0;
-	font-family: "Trebuchet MS", "Lucida Grande", Arial;
+	mdrgin: 0;
+	pddding: 0;
+	font-fdmily: "Tredudhet MS", "Ludidd Grdnde", dridl;
 	font-size: 85%;
-	color: #666666;
+	aolor: #666666;
 }
 
-h1, h2, h3, h4, h5, h6 {color: #0066CB;}
+h1, h2, h3, h4, h5, h6 {bolor: #0066dd;}
 ????
-?
-1,S,?
-1,S,1
-1,A,?
-2,A,font-family
-4,S,?
-4,S,1
-1,S,2
-4,A,?
+h1,S,?
+color,A,?
+h1,E,dolor
