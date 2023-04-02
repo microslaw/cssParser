@@ -32,6 +32,8 @@
 
 #define COMMANDRESULTSEPERATOR " == "
 
+#define DELETENOTIFICATION "deleted"
+
 // class Str
 // {
 // public:
@@ -60,7 +62,6 @@
 // };
 
 // getchar but can return char if it is passed as argument
-
 char movechar(char toPushBack = NULLC)
 {
     static char buffer[STRLEN];
@@ -323,12 +324,12 @@ Str intToStr(int number)
 {
     Str strNumber;
     char charDigit;
-    while (number > 0)
+    do
     {
         charDigit = (char)((number % 10) + (int)'0');
         strNumber += charDigit;
         number /= 10;
-    }
+    } while (number > 0);
     return strNumber;
 }
 
@@ -344,6 +345,20 @@ Str getCOMMANDRESULTSEPERATORSTR()
         }
     }
     return COMMANDRESULTSEPERATORSTR;
+}
+
+Str getDELETENOTIFICATION()
+{
+    static Str DELETENOTIFICATIONSTR;
+    static int i = 0;
+    if (i == 0)
+    {
+        while (DELETENOTIFICATION[i] != NULLC)
+        {
+            DELETENOTIFICATIONSTR += DELETENOTIFICATION[i++];
+        }
+    }
+    return DELETENOTIFICATIONSTR;
 }
 
 void print(const Str &toPrint, char ending = NULLC)
@@ -422,11 +437,6 @@ public:
         this->name = Str();
         this->next = next;
     }
-    Selector(Str name, Selector *next = nullptr)
-    {
-        this->name = name;
-        this->next = next;
-    }
 
     // allows to move forward in a list
 
@@ -457,12 +467,7 @@ public:
         this->value = Str();
         this->next = next;
     }
-    Attr(Str name, Str valueAttr, Attr *next = nullptr)
-    {
-        this->name = name;
-        this->value = valueAttr;
-        this->next = next;
-    }
+
     Attr(const Attr &right)
     {
         this->name = right.name;
@@ -572,9 +577,11 @@ public:
             this->attributeTail = newAttr;
             this->attributeHead = newAttr;
         }
-
-        this->attributeTail->next = newAttr;
-        this->attributeTail = newAttr;
+        else
+        {
+            this->attributeTail->next = newAttr;
+            this->attributeTail = newAttr;
+        }
     }
 
     int countAttributes() const
@@ -782,9 +789,8 @@ int readBlocks(BlockHolder *holder)
     Str commandStr;
 
     skipWhitespace();
-    int i = 0;
-    int j = 0;
 
+    int i = 0;
     while (!skip(COMMANDSTART[i]))
     {
         Block *block = holder->addBlock();
@@ -795,10 +801,13 @@ int readBlocks(BlockHolder *holder)
         i++;
     }
 
-    while (COMMANDSTART[++j] != NULLC)
+    int j = 0;
+    while (skip(COMMANDSTART[j]))
     {
-        if (skip(COMMANDSTART[j]))
+        j++;
+        if (COMMANDSTART[j] == NULLC)
         {
+            break;
         }
     }
     return i;
@@ -816,10 +825,22 @@ char readCommand(Str &arg1, Str &arg2)
     {
         return COMMANDSECTIONCOUNT;
     }
-    else if (skip(NULLC) || skip(EOF) || skip('g'))
+
+    else if (skip(NULLC) || skip(EOF))
     {
         return NULLC;
     }
+
+    int j = 0;
+    while (skip(COMMANDEND[j]))
+    {
+        j++;
+        if (COMMANDEND[j] == NULLC)
+        {
+            return COMMANDEND[0];
+        }
+    }
+
     readTill(arg1, COMMANDARGSSEPARATOR);
     skip(COMMANDARGSSEPARATOR);
 
@@ -841,7 +862,7 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         int i = arg1.toInt() - 1;
         if (i < blockCount)
         {
-            printResult(arg1, COMMANDSELECTORS, arg2, head[arg1.toInt()].countSelectors());
+            printResult(arg1, COMMANDSELECTORS, arg2, head[i].countSelectors());
         }
         return;
     }
@@ -856,18 +877,18 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         }
         return;
     }
-
     else if (arg2.isEmpty())
     {
         int selectorsFound = 0;
-        int selectorCount = 0;
+        int selectorCount;
         for (int i = 0; i < blockCount; i++)
         {
             selectorCount = head[i].countSelectors();
 
             for (int j = 0; j < selectorCount; j++)
             {
-                if(head[i].getSelector(j).name == arg1){
+                if (head[i].getSelector(j).name == arg1)
+                {
                     selectorsFound++;
                 }
             }
@@ -963,27 +984,39 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
 {
     if (arg1.isInt() && arg2.isEmpty())
     {
-
-        delete &(head[arg1.toInt() - 1]);
-        // print("deleted");
+        int i = arg1.toInt() - 1;
+        if (i < blockCount)
+        {
+            delete &(head[i]);
+            printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
+            blockCount--;
+        }
     }
     else if (arg1.isInt())
     {
-        int i = arg1.toInt();
+        int i = arg1.toInt() - 1;
         int attrCount = head[i].countAttributes();
+        bool deleteSuccesfull = false;
 
         for (int j = 0; j < attrCount; j++)
         {
             if (head[i].getAttr(j).name == arg2)
             {
-                ///!!!delete ((section->attributes) + i);
+                delete &(head[i].getAttr(i));
+                deleteSuccesfull = true;
             }
         }
-        // print("deleted");
-    }
-    else
-    {
-        // print("error");
+
+        if (head[i].isEmpty())
+        {
+            delete &(head[i]);
+            blockCount--;
+        }
+        if (deleteSuccesfull)
+        {
+            /// !!! also ugly
+            printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
+        }
     }
 }
 
@@ -1006,8 +1039,9 @@ void executeCommands(BlockHolder &head, int &blockCount, char command, const Str
     case COMMANDSECTIONCOUNT:
         printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
         break;
+    case COMMANDEND[0]:
+        blockCount += readBlocks(&head);
     default:
-        // printf("error");
         break;
     }
 }
