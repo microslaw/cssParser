@@ -19,6 +19,7 @@
 #define COMMANDSEARCH 'E'
 #define COMMANDDELETE 'D'
 #define COMMANDNOARG '?'
+#define COMMANDNOARG2 '*'
 
 #define STARTBRACKET '{'
 #define ENDBRACKET '}'
@@ -438,8 +439,6 @@ public:
         this->next = next;
     }
 
-    // allows to move forward in a list
-
     void killChildren()
     {
         if (this->next != nullptr)
@@ -448,6 +447,8 @@ public:
         }
         delete (this->next);
     }
+
+    // destroying selector is handled by block
 
     ~Selector()
     {
@@ -513,8 +514,10 @@ public:
             this->next->killChildren();
         }
         delete (this->next);
+        this->next = nullptr;
     }
 
+    // destroying attr is handled by block
     ~Attr()
     {
     }
@@ -570,6 +573,33 @@ public:
         return *tmp;
     }
 
+    // will check if selector exists
+    // !! can be optimized by omitting getSelector()
+    bool removeSelector(int i)
+    {
+        if (i > this->countSelectors())
+        {
+            return false;
+        }
+        Selector *deleted = &(this->getSelector(i));
+        if (i > 0)
+        {
+            // sets .next of previous node (i-1) to &node(i+1), skipping node i
+            (this->getSelector(i - 1)).next = &(this->getSelector(i + 1));
+        }
+        else
+        {
+            this->selectorHead = deleted->next;
+        }
+        if (this->selectorTail == deleted)
+        {
+            this->selectorTail = &(this->getSelector(i - 1));
+        }
+
+        delete deleted;
+        return true;
+    }
+
     void addAttribute(Attr *newAttr)
     {
         if (this->attributeHead == nullptr)
@@ -606,6 +636,44 @@ public:
         return *tmp;
     }
 
+    // will check if attribute exists
+    // !! can be optimized by omitting getAttr()
+    // !!! copy to selector
+    bool removeAttr(int i)
+    {
+        if (i > this->countAttributes())
+        {
+            return false;
+        }
+        Attr *deleted = &(this->getAttr(i));
+        if (i > 0)
+        {
+            // sets .next of previous node (i-1) to &node(i+1), skipping node i
+            (this->getAttr(i - 1)).next = &(this->getAttr(i + 1));
+        }
+        else
+        {
+            this->attributeHead = deleted->next;
+        }
+        if (this->attributeTail == deleted)
+        {
+            // check if there are any nodes left
+            if (this->attributeHead != nullptr)
+            {
+                this->attributeTail = &(this->getAttr(i - 1));
+            }
+            // if that was the last attribute, entire block is pointless, so it should be deleted
+            else
+            {
+                this->attributeTail = nullptr;
+                this->~Block();
+            }
+        }
+
+        delete deleted;
+        return true;
+    }
+
     bool isEmpty() const
     {
         if (this->attributeHead == nullptr)
@@ -617,6 +685,24 @@ public:
 
     ~Block()
     {
+        if (this->attributeHead != nullptr)
+        {
+            this->attributeHead->killChildren();
+            delete attributeHead;
+        }
+
+        if (this->selectorHead != nullptr)
+        {
+            this->selectorHead->killChildren();
+            delete selectorHead;
+        }
+
+        // destructor creates hollow object, pointers need to be zeroed so that isEmpty() will consider object hollow
+
+        this->attributeHead = nullptr;
+        this->attributeTail = nullptr;
+        this->selectorHead = nullptr;
+        this->selectorTail = nullptr;
     }
 };
 
@@ -681,23 +767,21 @@ public:
     }
 
     // returns reference to block. can jump to another nodes, skips empty blocks
-    // !!! optimize moving between blocks
+    // !! optimize moving between blocks
     Block &operator[](int index)
     {
-        int i = 0;
-        while (index != 0)
+        for (int i = 0; i < T; i++)
         {
             if (!(this->blocks)[i].isEmpty())
             {
                 index--;
+                if (index < 0)
+                {
+                    return (this->blocks)[i];
+                }
             }
-            i++;
-            if (i >= T)
-            {
-                return (*(this->next))[index];
-            }
-        }
-        return (this->blocks)[i];
+        };
+        return (*(this->next))[index];
     }
 
     ~BlockHolder()
@@ -791,6 +875,7 @@ int readBlocks(BlockHolder *holder)
     skipWhitespace();
 
     int i = 0;
+    int j = 0;
     while (!skip(COMMANDSTART[i]))
     {
         Block *block = holder->addBlock();
@@ -801,7 +886,7 @@ int readBlocks(BlockHolder *holder)
         i++;
     }
 
-    int j = 0;
+    /// !!! push back after faulty loading
     while (skip(COMMANDSTART[j]))
     {
         j++;
@@ -840,6 +925,11 @@ char readCommand(Str &arg1, Str &arg2)
             return COMMANDEND[0];
         }
     }
+    j--;
+    while (j > 0)
+    {
+        movechar(COMMANDEND[j]);
+    }
 
     readTill(arg1, COMMANDARGSSEPARATOR);
     skip(COMMANDARGSSEPARATOR);
@@ -847,7 +937,7 @@ char readCommand(Str &arg1, Str &arg2)
     char commandType = movechar();
     skip(COMMANDARGSSEPARATOR);
 
-    if (skip(COMMANDNOARG))
+    if (skip(COMMANDNOARG) || skip(COMMANDNOARG2))
     {
         return commandType;
     }
@@ -938,7 +1028,6 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     {
         int attrFound = 0;
         int attrCount;
-        int lastI, lastJ;
 
         for (int i = 0; i < blockCount; i++)
         {
@@ -987,9 +1076,9 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
         int i = arg1.toInt() - 1;
         if (i < blockCount)
         {
-            delete &(head[i]);
-            printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
+            head[i].~Block(); // an array of blocks was allocated, so delete isn't called to remove one, only it's destructor
             blockCount--;
+            printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
         }
     }
     else if (arg1.isInt())
@@ -1002,16 +1091,18 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
         {
             if (head[i].getAttr(j).name == arg2)
             {
-                delete &(head[i].getAttr(i));
+                // removing block with no arguments is handled in removeAttr
+                head[i].removeAttr(j);
+                
+                // need to reduce blockCount
+                if (attrCount == 1)
+                {
+                    blockCount--;
+                }
                 deleteSuccesfull = true;
             }
         }
 
-        if (head[i].isEmpty())
-        {
-            delete &(head[i]);
-            blockCount--;
-        }
         if (deleteSuccesfull)
         {
             /// !!! also ugly
@@ -1062,7 +1153,7 @@ int main()
 }
 
 // !!!\r
-
+// !! selector and attr can inherit
 // killNext w listach pojedyńczych
 // lastI = -1
 // print only in str
