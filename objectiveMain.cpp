@@ -38,34 +38,7 @@
 
 int globalLineCounter = 0;
 
-// class Str
-// {
-// public:
-//     char *charList;
-//     // reservedSize includes NULLC (minimum is 1), if 0 no memory allocated
-//     int reservedSize;
-
-//     // size excludes NULLC
-//     Str(int size = 0, Str *str = nullptr);
-//     Str(const Str &old);
-//     Str(Str &&old);
-//     Str &operator=(const Str &right);
-//     Str &operator=(Str &&right);
-//     int length() const;
-//     void stripEnd();
-//     bool isEmpty() const;
-//     void copyTo(char *newCopy) const;
-//     bool isInt() const;
-//     int toInt() const;
-//     Str &operator+=(char ch);
-//     char &operator[](int index);
-//     char operator[](int index) const;
-//     bool operator==(const Str &right);
-
-//     ~Str();
-// };
-
-// getchar but can return char if it is passed as argument
+// getchar but can ungetch char if it is passed as argument
 char movechar(char toPushBack = NULLC)
 {
     static char buffer[STRLEN];
@@ -911,13 +884,11 @@ void readAttributes(Block &block)
 // returns number of blocks read
 int readBlocks(BlockHolder *holder)
 {
-    Str commandStr;
-
     skipWhitespace();
 
     int i = 0;
     int j = 0;
-    while (!skip(COMMANDSTART[0]))
+    while (true)
     {
         Block *block = holder->addBlock();
         readSelectors(*block);
@@ -925,18 +896,25 @@ int readBlocks(BlockHolder *holder)
 
         skipWhitespace();
         i++;
-    }
 
-    /// !!! push back after faulty loading
-    while (skip(COMMANDSTART[j]))
-    {
-        j++;
-        if (COMMANDSTART[j] == NULLC)
+        while (skip(COMMANDSTART[j]))
         {
-            break;
+            j++;
+            if (COMMANDSTART[j] == NULLC)
+            {
+                return i;
+            }
+        }
+        while (j > 0)
+        {
+            movechar(COMMANDSTART[j]);
+            j--;
+        }
+
+        if(skip(EOF)){
+            return i;
         }
     }
-    return i;
 }
 
 // reads command type and arguments
@@ -1043,8 +1021,8 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     {
         int i = arg1.toInt() - 1;
         int attrCount;
-        int lastI = -1;
-        int lastJ = -1;
+        int lastI = NOINDEX;
+        int lastJ = NOINDEX;
         if (i < blockCount)
         {
             attrCount = head[i].countAttributes();
@@ -1058,13 +1036,13 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
                 }
             }
         }
-        if (lastI != -1)
+        if (lastI != NOINDEX)
         {
             printResult(arg1, COMMANDATTRIBUTES, arg2, head[lastI].getAttr(lastJ).value);
         }
         return;
     }
-    ///!!! remove when readin
+    ///!!! remove when reading
     else if (arg2.isEmpty())
     {
         int attrFound = 0;
@@ -1081,14 +1059,14 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
             {
                 if (head[i].getAttr(j).name == arg1)
                 {
-                    prevJ = j;
                     if (prevJ != NOINDEX)
                     {
                         // this is removal of repeating (therefore not last) argument in a block, so block will never neeed to be deleted here
                         head[i].removeAttr(prevJ);
-                        prevJ = j;
+                        prevJ = NOINDEX;
                         attrCount--;
                     }
+                    prevJ = j;
                     attrFound++;
                 }
             }
@@ -1097,10 +1075,12 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     }
 }
 
+
+// !!! change to prev
 void eCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &arg2)
 {
-    int lastI = -1;
-    int lastJ = -1;
+    int lastI = NOINDEX;
+    int lastJ = NOINDEX;
     int selectorCount;
     for (int i = 0; i < blockCount; i++)
     {
@@ -1115,7 +1095,7 @@ void eCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
             }
         }
     }
-    if (lastI != -1)
+    if (lastI != NOINDEX)
     {
         printResult(arg1, COMMANDSEARCH, arg2, head[lastI].getAttr(lastJ).value);
     }
@@ -1210,5 +1190,4 @@ int main()
 // !!!\r
 // !! selector and attr can inherit
 // killNext w listach pojedyńczych
-// lastI = -1
 // print only in str
