@@ -1,5 +1,3 @@
-? == 3
-1,S,? == 1
-1,S,1 == #breadcrumb
-1,A,? == 2
-2,A,font-family == "Trebuchet MS", "Lucida Grande", Arial
+h1,S,? == 2
+color,A,? == 2
+h1,E,color == #666666
