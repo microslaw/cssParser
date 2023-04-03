@@ -7,6 +7,7 @@
 
 #define NULLC '\0'
 #define ENDL '\n'
+#define NOINDEX -1
 
 #define SELECTORENDs '}'
 
@@ -34,6 +35,8 @@
 #define COMMANDRESULTSEPERATOR " == "
 
 #define DELETENOTIFICATION "deleted"
+
+int globalLineCounter = 0;
 
 // class Str
 // {
@@ -114,6 +117,7 @@ void swap(char *&first, char *&second)
 
 class Str
 {
+
 public:
     char *charList;
     // reservedSize includes NULLC (minimum is 1), if 0 no memory allocated
@@ -198,7 +202,8 @@ public:
             i--;
             if (i < this->reservedSize - 16)
             {
-                this->charList = (char *)realloc(this->charList, i - 16);
+                this->reservedSize -= STRLEN;
+                this->charList = (char *)realloc(this->charList, this->reservedSize);
             }
         }
     }
@@ -305,12 +310,32 @@ public:
         return true;
     }
 
+    bool operator==(char *&&right)
+    {
+        int charLen = 0;
+        for (charLen = 0; right[charLen] != NULLC; charLen++)
+            ;
+        int len = this->length();
+        if (len != charLen)
+        {
+            return false;
+        }
+        for (int i = 0; i < len; i++)
+        {
+            if (this->charList[i] != right[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     ~Str()
     {
-        if (this->charList != nullptr)
-        {
-            free(this->charList);
-        }
+        // if (this->charList != nullptr)
+        // {
+        //     free(this->charList);
+        // }
     }
 };
 
@@ -325,11 +350,19 @@ Str intToStr(int number)
 {
     Str strNumber;
     char charDigit;
+
+    int largestDigit = 1;
+    while (largestDigit * 10 < number)
+    {
+        largestDigit *= 10;
+    }
+
     do
     {
-        charDigit = (char)((number % 10) + (int)'0');
+        charDigit = (char)((number / largestDigit) + (int)'0');
         strNumber += charDigit;
-        number /= 10;
+        number = number % largestDigit;
+        largestDigit /= 10;
     } while (number > 0);
     return strNumber;
 }
@@ -807,6 +840,10 @@ void readTill(Str &buffor, char endChar, char endChar2 = NULLC)
 void skipWhitespace()
 {
     char ch = movechar();
+    if (skip(ENDL))
+    {
+        globalLineCounter++;
+    }
     while (isWhiteSpace(ch))
     {
         ch = movechar();
@@ -824,6 +861,10 @@ void readSelectors(Block &block)
         block.addSelector(new Selector);
         Str &selectorName = block.selectorTail->name;
         readTill(selectorName, SELECTORSEPARATOR, STARTBRACKET);
+        // if (selectorName == "h1.menu_nodeStyle \n")
+        // {
+        //     Str delLater = selectorName;
+        // }
         selectorName.stripEnd();
         skipWhitespace();
 
@@ -876,7 +917,7 @@ int readBlocks(BlockHolder *holder)
 
     int i = 0;
     int j = 0;
-    while (!skip(COMMANDSTART[i]))
+    while (!skip(COMMANDSTART[0]))
     {
         Block *block = holder->addBlock();
         readSelectors(*block);
@@ -1023,20 +1064,31 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         }
         return;
     }
-    ///!!! remove when reading
+    ///!!! remove when readin
     else if (arg2.isEmpty())
     {
         int attrFound = 0;
         int attrCount;
+        int prevJ;
 
         for (int i = 0; i < blockCount; i++)
         {
             attrCount = head[i].countAttributes();
 
+            prevJ = NOINDEX;
+
             for (int j = 0; j < attrCount; j++)
             {
                 if (head[i].getAttr(j).name == arg1)
                 {
+                    prevJ = j;
+                    if (prevJ != NOINDEX)
+                    {
+                        // this is removal of repeating (therefore not last) argument in a block, so block will never neeed to be deleted here
+                        head[i].removeAttr(prevJ);
+                        prevJ = j;
+                        attrCount--;
+                    }
                     attrFound++;
                 }
             }
@@ -1078,7 +1130,10 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
         {
             head[i].~Block(); // an array of blocks was allocated, so delete isn't called to remove one, only it's destructor
             blockCount--;
-            printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
+            // !!!ugly
+            Str tmp;
+            tmp += COMMANDNOARG2;
+            printResult(arg1, COMMANDDELETE, tmp, getDELETENOTIFICATION());
         }
     }
     else if (arg1.isInt())
@@ -1093,7 +1148,7 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
             {
                 // removing block with no arguments is handled in removeAttr
                 head[i].removeAttr(j);
-                
+
                 // need to reduce blockCount
                 if (attrCount == 1)
                 {
