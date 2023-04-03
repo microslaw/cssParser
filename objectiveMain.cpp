@@ -97,19 +97,10 @@ public:
     int reservedSize;
 
     // size excludes NULLC
-    Str(int size = 0, Str *str = nullptr)
+    Str()
     {
-        this->reservedSize = size;
-        if (str == nullptr)
-        {
-            if (size == 0)
-            {
-                this->charList = nullptr;
-                return;
-            }
-            this->charList = (char *)malloc(size * sizeof(char));
-            this->charList[size - 1] = NULLC;
-        }
+        this->reservedSize = 0;
+        this->charList = nullptr;
     }
 
     void swapWith(Str &second)
@@ -774,7 +765,7 @@ public:
 
     // returns reference to block. can jump to another nodes, skips empty blocks
     // block with specified index must exist;
-    // accepts negative indices
+    // accepts negative indices (due to lack of -0, all are moved by -1)
     // !! optimize moving between blocks
     Block &operator[](int index)
     {
@@ -795,7 +786,8 @@ public:
         }
         else
         {
-            index = -index;
+            // move by 1
+            index = -index - 1;
 
             for (int i = T - 1; i >= 0; i--)
             {
@@ -1103,7 +1095,7 @@ void eCommands(BlockHolder &tail, int blockCount, const Str &arg1, const Str &ar
 {
     int selectorCount, attrCount;
 
-    for (int i = 0; i > -blockCount; i--)
+    for (int i = -1; i > -blockCount; i--)
     {
         selectorCount = tail[i].countSelectors();
         for (int j = 0; j < selectorCount; j++)
@@ -1124,7 +1116,6 @@ void eCommands(BlockHolder &tail, int blockCount, const Str &arg1, const Str &ar
             }
         }
     }
-
 }
 
 void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &arg2)
