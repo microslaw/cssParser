@@ -92,6 +92,13 @@ void swap(char *&first, char *&second)
     second = tmp;
 }
 
+void swap(char &left, char &right)
+{
+    char tmp = left;
+    left = right;
+    right = tmp;
+}
+
 class Str
 {
 
@@ -105,6 +112,31 @@ public:
     {
         this->reservedSize = 0;
         this->charList = nullptr;
+    }
+
+    Str(int number)
+    {
+        *this = Str();
+
+        if (number == 0)
+        {
+            *this += ZEROCHAR;
+        }
+
+        while (number > 0)
+        {
+            *this += ZEROCHAR + (number % NUMBASE);
+            number /= NUMBASE;
+        }
+
+        int len = this->length() - 1;
+        int i = 0;
+
+        while (i <= len - i)
+        {
+            swap(this->charList[i], this->charList[len - i]);
+            i++;
+        }
     }
 
     void swapWith(Str &second)
@@ -229,6 +261,7 @@ public:
     void erase()
     {
         this->~Str();
+        this->charList = nullptr;
         this->reservedSize = 0;
     }
 
@@ -305,8 +338,7 @@ public:
     {
         if (this->charList != nullptr)
         {
-            free((this->charList));
-            this->charList = nullptr;
+            free(this->charList);
         }
     }
 };
@@ -318,40 +350,7 @@ void swap(Str &left, Str &right)
     left.swapWith(right);
 }
 
-void swap(char &left, char &right)
-{
-    char tmp = left;
-    left = right;
-    right = tmp;
-}
-
 // maybe do a reverse string?
-Str intToStr(int number)
-{
-    Str strNumber;
-
-    if (number == 0)
-    {
-        strNumber += ZEROCHAR;
-    }
-
-    while (number > 0)
-    {
-        strNumber += ZEROCHAR + (number % NUMBASE);
-        number /= NUMBASE;
-    }
-
-    int len = strNumber.length() - 1;
-    int i = 0;
-
-    while (i <= len - i)
-    {
-        swap(strNumber[i], strNumber[len - i]);
-        i++;
-    }
-
-    return strNumber;
-}
 
 Str getCOMMANDRESULTSEPERATORSTR()
 {
@@ -396,8 +395,7 @@ void print(const Str &toPrint, char ending = NULLC)
 
 void print(int toPrint, char ending = NULLC)
 {
-    Str strToPrint = intToStr(toPrint);
-    print(strToPrint, ending);
+    print(Str(toPrint), ending);
 }
 
 void print(char toPrint, char ending = NULLC)
@@ -442,8 +440,7 @@ void printResult(const Str &arg1, char commandType, const Str &arg2, const Str &
 
 void printResult(const Str &arg1, char commandType, const Str &arg2, const int &result)
 {
-    Str resultStr = intToStr(result);
-    printResult(arg1, commandType, arg2, resultStr);
+    printResult(arg1, commandType, arg2, Str(result));
 }
 
 class Selector
