@@ -54,6 +54,10 @@ char movechar(char toPushBack = NULLC)
         if (bufferLen == 0)
         {
             tmp = (int)getchar();
+            if (tmp == ENDL)
+            {
+                globalLineCounter++;
+            }
             return tmp;
         }
         return buffer[--bufferLen];
@@ -1010,18 +1014,34 @@ void readAttributes(Block &block)
     }
 }
 
-///!!! fix below function
+BlockHolder *getTail(BlockHolder *head)
+{
+    BlockHolder *tail = head;
+
+    if (tail == nullptr)
+    {
+        return nullptr;
+    }
+
+    while (tail->next != nullptr)
+    {
+        tail = tail->next;
+    }
+    return tail;
+}
+
 // reads blocks and COMMANDSTART
 // returns number of blocks read
-int readBlocks(BlockHolder *holder)
+int readBlocks(BlockHolder *&head, BlockHolder *&tail, int blockCount)
 {
     skipWhitespace();
 
     int i = 0;
     int j = 0;
+    Block *block;
     while (true)
     {
-        Block *block = holder->addBlock();
+        block = head->addBlock();
         readSelectors(*block);
         readAttributes(*block);
 
@@ -1033,18 +1053,14 @@ int readBlocks(BlockHolder *holder)
             j++;
             if (COMMANDSTART[j] == NULLC)
             {
-                return i;
+                tail = getTail(head);
+                return i + blockCount;
             }
         }
         while (j > 0)
         {
             movechar(COMMANDSTART[j]);
             j--;
-        }
-
-        if (skip(EOF))
-        {
-            return i;
         }
     }
 }
@@ -1064,7 +1080,7 @@ char readCommand(Str &arg1, Str &arg2)
 
     else if (skip(NULLC) || skip(EOF))
     {
-        return NULLC;
+        return EOF;
     }
 
     int j = 0;
@@ -1196,7 +1212,7 @@ void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
 
 void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &arg2)
 {
-    BlockHolder & tail = *pTail;
+    BlockHolder &tail = *pTail;
     int selectorCount, attrCount;
 
     for (int i = -1; i > -blockCount; i--)
@@ -1277,23 +1293,7 @@ void dCommands(BlockHolder *&pHead, int &blockCount, const Str &arg1, const Str 
     }
 }
 
-BlockHolder *getTail(BlockHolder *head)
-{
-    BlockHolder *tail = head;
-
-    if (tail == nullptr)
-    {
-        return nullptr;
-    }
-
-    while (tail->next != nullptr)
-    {
-        tail = tail->next;
-    }
-    return tail;
-}
-
-void executeCommands(BlockHolder *&head, BlockHolder *&tail, int &blockCount, char command, const Str &arg1, const Str &arg2)
+void executeCommand(BlockHolder *&head, BlockHolder *&tail, int &blockCount, char command, const Str &arg1, const Str &arg2)
 {
     switch (command)
     {
@@ -1312,9 +1312,6 @@ void executeCommands(BlockHolder *&head, BlockHolder *&tail, int &blockCount, ch
     case COMMANDSECTIONCOUNT:
         printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
         break;
-    case COMMANDEND[0]:
-        blockCount += readBlocks(head);
-        tail = getTail(head);
     default:
         break;
     }
@@ -1322,8 +1319,9 @@ void executeCommands(BlockHolder *&head, BlockHolder *&tail, int &blockCount, ch
 
 void chainDeleteBlockHolders(BlockHolder *head)
 {
-    if (head->next == nullptr)
+    if (head == nullptr)
     {
+
         return;
     }
     chainDeleteBlockHolders(head->next);
@@ -1368,21 +1366,42 @@ void printAll(BlockHolder &head, int blockCount)
     }
 }
 
+bool readAndExecuteCommands(BlockHolder *&head, BlockHolder *&tail, int blockCount)
+{
+    Str arg1, arg2;
+    char commandType;
+    while (commandType != COMMANDEND[0])
+    {
+        commandType = readCommand(arg1, arg2);
+        executeCommand(head, tail, blockCount, commandType, arg1, arg2);
+
+        if (commandType == EOF)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int main()
 {
     //    Str tmp = intToStr(89);
-    BlockHolder *head = new BlockHolder;
-    int blockCount = readBlocks(head);
-    BlockHolder *tail = getTail(head);
-    Str arg1, arg2;
-    char commandType;
+    BlockHolder *head, *tail;
+    int blockCount = 0;
+    bool endOfFile = false;
     do
     {
-        commandType = readCommand(arg1, arg2);
-        executeCommands(head, tail, blockCount, commandType, arg1, arg2);
-    } while (commandType != NULLC);
+        if (head == nullptr)
+        {
+            head = new BlockHolder;
+        }
 
-    printAll(*head, blockCount);
+        blockCount = readBlocks(head, tail, blockCount);
+        endOfFile = readAndExecuteCommands(head, tail, blockCount);
+
+    } while (!endOfFile);
+
+    // printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
