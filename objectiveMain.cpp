@@ -304,11 +304,11 @@ public:
 
     ~Str()
     {
-        // if (this->charList != nullptr)
-        // {
-        //     free(this->charList);
-        //     this->charList = nullptr;
-        // }
+        if (this->charList != nullptr)
+        {
+            // free(this->charList);
+            this->charList = nullptr;
+        }
     }
 };
 
@@ -443,7 +443,8 @@ void printResult(const Str &arg1, char commandType, const Str &arg2, const Str &
 
 void printResult(const Str &arg1, char commandType, const Str &arg2, const int &result)
 {
-    Str resultStr = intToStr(result);
+    Str resultStr;
+    resultStr = intToStr(result);
     printResult(arg1, commandType, arg2, resultStr);
 }
 
@@ -1218,32 +1219,6 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
     }
 }
 
-void executeCommands(BlockHolder &head, BlockHolder &tail, int &blockCount, char command, const Str &arg1, const Str &arg2)
-{
-    switch (command)
-    {
-    case COMMANDSELECTORS:
-        sCommands(head, blockCount, arg1, arg2);
-        break;
-    case COMMANDATTRIBUTES:
-        aCommands(head, blockCount, arg1, arg2);
-        break;
-    case COMMANDSEARCH:
-        eCommands(tail, blockCount, arg1, arg2);
-        break;
-    case COMMANDDELETE:
-        dCommands(head, blockCount, arg1, arg2);
-        break;
-    case COMMANDSECTIONCOUNT:
-        printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
-        break;
-    case COMMANDEND[0]:
-        blockCount += readBlocks(&head);
-    default:
-        break;
-    }
-}
-
 BlockHolder *getTail(BlockHolder *head)
 {
     BlockHolder *tail = head;
@@ -1258,6 +1233,33 @@ BlockHolder *getTail(BlockHolder *head)
         tail = tail->next;
     }
     return tail;
+}
+
+void executeCommands(BlockHolder *&head, BlockHolder *&tail, int &blockCount, char command, const Str &arg1, const Str &arg2)
+{
+    switch (command)
+    {
+    case COMMANDSELECTORS:
+        sCommands(*head, blockCount, arg1, arg2);
+        break;
+    case COMMANDATTRIBUTES:
+        aCommands(*head, blockCount, arg1, arg2);
+        break;
+    case COMMANDSEARCH:
+        eCommands(*tail, blockCount, arg1, arg2);
+        break;
+    case COMMANDDELETE:
+        dCommands(*head, blockCount, arg1, arg2);
+        break;
+    case COMMANDSECTIONCOUNT:
+        printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
+        break;
+    case COMMANDEND[0]:
+        blockCount += readBlocks(head);
+        tail = getTail(head);
+    default:
+        break;
+    }
 }
 
 void chainDeleteBlockHolders(BlockHolder *head)
@@ -1309,6 +1311,7 @@ void printAll(BlockHolder &head, int blockCount)
 
 int main()
 {
+//    Str tmp = intToStr(89);
     BlockHolder *head = new BlockHolder;
     int blockCount = readBlocks(head);
     BlockHolder *tail = getTail(head);
@@ -1317,17 +1320,15 @@ int main()
     do
     {
         commandType = readCommand(arg1, arg2);
-        executeCommands(*head, *tail, blockCount, commandType, arg1, arg2);
+        executeCommands(head, tail, blockCount, commandType, arg1, arg2);
     } while (commandType != NULLC);
 
-    printAll(*head, blockCount);
+    //printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
     return 0;
 }
 
-// !!!\r
 // !! selector and attr can inherit
-// killNext w listach pojedyńczych
 // print only in str
