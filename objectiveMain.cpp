@@ -53,12 +53,11 @@ char movechar(char toPushBack = NULLC)
     {
         if (bufferLen == 0)
         {
-            tmp = (int)getchar();
             if (tmp == ENDL)
             {
                 globalLineCounter++;
             }
-            return tmp;
+            return getchar();
         }
         return buffer[--bufferLen];
     }
@@ -878,8 +877,10 @@ public:
     // !! optimize moving between blocks
     Block &operator[](int index)
     {
+        static int a = 0;
         if (index >= 0)
         {
+            a++;
             for (int i = 0; i < T; i++)
             {
                 if (!(this->blocks)[i].isEmpty())
@@ -895,6 +896,7 @@ public:
         }
         else
         {
+            a++;
             // move by 1
             index = -index - 1;
 
@@ -1048,7 +1050,6 @@ int readBlocks(BlockHolder *&head, BlockHolder *&tail, int blockCount)
         skipWhitespace();
         i++;
 
-
         while (skip(COMMANDSTART[j]))
         {
             j++;
@@ -1173,8 +1174,6 @@ void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
     {
         int i = arg1.toInt() - 1;
         int attrCount;
-        int lastI = NOINDEX;
-        int lastJ = NOINDEX;
         if (i < blockCount)
         {
             attrCount = head[i].countAttributes();
@@ -1197,11 +1196,12 @@ void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
 
         for (int i = 0; i < blockCount; i++)
         {
-            attrCount = head[i].countAttributes();
+            Block & block = head[i];
+            attrCount = block.countAttributes();
 
             for (int j = 0; j < attrCount; j++)
             {
-                if (head[i].getAttr(j).name == arg1)
+                if (block.getAttr(j).name == arg1)
                 {
                     attrFound++;
                 }
@@ -1218,19 +1218,20 @@ void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &a
 
     for (int i = -1; i > -blockCount; i--)
     {
-        selectorCount = tail[i].countSelectors();
+        Block &block = tail[i];
+        selectorCount = block.countSelectors();
         for (int j = 0; j < selectorCount; j++)
         {
-            if (tail[i].getSelector(j).name == arg1)
+            if (block.getSelector(j).name == arg1)
             {
 
-                attrCount = tail[i].countAttributes();
+                attrCount = block.countAttributes();
 
                 for (int k = 0; k < attrCount; k++)
                 {
-                    if (tail[i].getAttr(k).name == arg2)
+                    if (block.getAttr(k).name == arg2)
                     {
-                        printResult(arg1, COMMANDSEARCH, arg2, tail[i].getAttr(k).value);
+                        printResult(arg1, COMMANDSEARCH, arg2, block.getAttr(k).value);
                         return;
                     }
                 }
@@ -1367,10 +1368,12 @@ void printAll(BlockHolder &head, int blockCount)
     }
 }
 
-bool readAndExecuteCommands(BlockHolder *&head, BlockHolder *&tail, int blockCount)
+bool readAndExecuteCommands(BlockHolder *&head, BlockHolder *&tail, int &blockCount)
 {
     Str arg1, arg2;
-    char commandType;
+    char commandType = NULLC;
+    static int a = 0;
+    a++;
     while (commandType != COMMANDEND[0])
     {
         commandType = readCommand(arg1, arg2);
@@ -1387,7 +1390,8 @@ bool readAndExecuteCommands(BlockHolder *&head, BlockHolder *&tail, int blockCou
 int main()
 {
     //    Str tmp = intToStr(89);
-    BlockHolder *head, *tail;
+    BlockHolder *head = nullptr;
+    BlockHolder *tail;
     int blockCount = 0;
     bool endOfFile = false;
     do
@@ -1402,7 +1406,7 @@ int main()
 
     } while (!endOfFile);
 
-    // printAll(*head, blockCount);
+    printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
