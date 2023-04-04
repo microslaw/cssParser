@@ -164,6 +164,10 @@ public:
     void stripEnd()
     {
         int i = this->length() - 1;
+        if (this->length() <= 0)
+        {
+            return;
+        }
         while (isWhiteSpace(this->charList[i]))
         {
             this->charList[i] = NULLC;
@@ -1173,22 +1177,26 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
     else if (arg1.isInt())
     {
         int i = arg1.toInt() - 1;
-        int attrCount = head[i].countAttributes();
         bool deleteSuccesfull = false;
-
-        for (int j = 0; j < attrCount; j++)
+        if (i < blockCount)
         {
-            if (head[i].getAttr(j).name == arg2)
-            {
-                // removing block with no arguments is handled in removeAttr
-                head[i].removeAttr(j);
+            int attrCount = head[i].countAttributes();
 
-                // need to reduce blockCount
-                if (attrCount == 1)
+            for (int j = 0; j < attrCount; j++)
+            {
+                if (head[i].getAttr(j).name == arg2)
                 {
-                    blockCount--;
+                    // removing block with no arguments is handled in removeAttr
+                    head[i].removeAttr(j);
+
+                    // need to reduce blockCount
+                    if (attrCount == 1)
+                    {
+                        blockCount--;
+                    }
+                    deleteSuccesfull = true;
+                    break;
                 }
-                deleteSuccesfull = true;
             }
         }
 
