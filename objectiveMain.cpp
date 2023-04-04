@@ -54,7 +54,7 @@ char movechar(char toPushBack = NULLC)
         if (bufferLen == 0)
         {
             tmp = (int)getchar();
-            return tmp; 
+            return tmp;
         }
         return buffer[--bufferLen];
     }
@@ -77,7 +77,7 @@ bool skip(char toSkip)
 
 bool isWhiteSpace(char ch)
 {
-    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR; // || ch < 0;
+    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR;// || ch < -1;
 }
 
 void swap(int &first, int &second)
@@ -249,25 +249,8 @@ public:
         this->reservedSize = 0;
     }
 
-    // Str getDEBUGSTR()
-    // {
-
-    //     static Str DEBUGSTR;
-    //     static int i = 0;
-    //     if (i == 0)
-    //     {
-    //         while (".ms-Button:hover"[i] != NULLC)
-    //         {
-    //             DEBUGSTR += ".ms-Button:hover"[i++];
-    //         }
-    //     }
-    //     return DEBUGSTR;
-    // }
-
     Str &operator+=(char ch)
     {
-        //static Str debug = Str(DEBUGSTRDEF);
-
         if (this->reservedSize == 0)
         {
             this->reservedSize = STRLEN;
@@ -287,6 +270,7 @@ public:
 
         return *this;
     }
+
     char &operator[](int index)
     {
         return this->charList[index];
@@ -809,15 +793,18 @@ public:
         this->blocks = new Block[T];
     }
 
-    // will add new block in first empty place
-
-    Block *addBlock(Block &newBlock)
+    // will add new block in first empty slot
+    // if no argument is passed will return pointer to first empty slot
+    Block *addBlock(Block *newBlock = nullptr)
     {
         for (int i = 0; i < T; i++)
         {
             if (blocks[i].isEmpty())
             {
-                blocks[i] = newBlock; ///!!! move constructor?
+                if (newBlock != nullptr)
+                {
+                    blocks[i] = *newBlock; ///!!! move constructor?
+                }
                 return blocks + i;
             }
         }
@@ -826,13 +813,6 @@ public:
             this->next = new BlockHolder(this);
         }
         return this->next->addBlock(newBlock);
-    }
-
-    Block *addBlock()
-    {
-        Block newBlock;
-        Block *pBlock = addBlock(newBlock);
-        return pBlock;
     }
 
     int countBlocks()
@@ -941,14 +921,16 @@ void readSelectors(Block &block)
 
     while (true)
     {
-        block.addSelector(new Selector);
-        Str &selectorName = block.selectorTail->name;
+        Selector *newSelector = new Selector;
+        Str &selectorName = newSelector->name;
         readTill(selectorName, SELECTORSEPARATOR, STARTBRACKET);
-        // if (selectorName == "h1.menu_nodeStyle \n")
-        // {
-        //     Str delLater = selectorName;
-        // }
         selectorName.stripEnd();
+        if (selectorName.length() > 0)
+        {
+
+            block.addSelector(newSelector);
+        }
+
         skipWhitespace();
 
         if (skip(STARTBRACKET)) // value returned by movechar will be either SELECTORSEPARATOR or STARTBRACKET, and can be ignored
@@ -1310,7 +1292,6 @@ void printAll(BlockHolder &head, int blockCount)
     putchar('\n');
     putchar('\n');
     putchar('\n');
-    //    static Str debug = Str(DEBUGSTRDEF);
     int attrCount, selecCount;
 
     for (int i = 0; i < blockCount; i++)
@@ -1321,10 +1302,6 @@ void printAll(BlockHolder &head, int blockCount)
         selecCount = head[i].countSelectors();
         for (int j = 0; j < selecCount; j++)
         {
-            // if (head[i].getSelector(j).name == debug)
-            // {
-            //     int b = 9;
-            // }
             print(head[i].getSelector(j).name);
             putchar(',');
             putchar(' ');
@@ -1360,7 +1337,7 @@ int main()
         executeCommands(head, tail, blockCount, commandType, arg1, arg2);
     } while (commandType != NULLC);
 
-    printAll(*head, blockCount);
+    //printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
@@ -1370,3 +1347,4 @@ int main()
 // !! selector and attr can inherit
 // print only in str
 //!! delete debugstr
+// delete attr when reading data
