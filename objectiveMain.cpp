@@ -1048,6 +1048,7 @@ int readBlocks(BlockHolder *&head, BlockHolder *&tail, int blockCount)
         skipWhitespace();
         i++;
 
+
         while (skip(COMMANDSTART[j]))
         {
             j++;
