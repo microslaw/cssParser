@@ -22,6 +22,8 @@
 #define COMMANDNOARG '?'
 #define COMMANDNOARG2 '*'
 
+#define ZEROCHAR '0'
+
 #define STARTBRACKET '{'
 #define ENDBRACKET '}'
 #define SELECTORSEPARATOR ','
@@ -33,6 +35,8 @@
 #define COMMANDARGSSEPARATOR ','
 
 #define COMMANDRESULTSEPERATOR " == "
+
+#define NUMBASE 10
 
 #define DELETENOTIFICATION "deleted"
 
@@ -199,7 +203,7 @@ public:
         }
         for (int i = 0; this->charList[i] != NULLC; i++)
         {
-            if (this->charList[i] > '9' || this->charList[i] < '0')
+            if (this->charList[i] > NUMBASE - 1 + ZEROCHAR || this->charList[i] < ZEROCHAR)
             {
                 return false;
             }
@@ -212,8 +216,8 @@ public:
         int result = 0;
         for (int i = 0; i < this->length(); i++)
         {
-            result *= 10;
-            result += this->charList[i] - '0';
+            result *= NUMBASE;
+            result += this->charList[i] - ZEROCHAR;
         }
         return result;
     }
@@ -310,24 +314,38 @@ void swap(Str &left, Str &right)
     left.swapWith(right);
 }
 
+void swap(char &left, char &right)
+{
+    char tmp = left;
+    left = right;
+    right = tmp;
+}
+
+// maybe do a reverse string?
 Str intToStr(int number)
 {
     Str strNumber;
     char charDigit;
 
-    int largestDigit = 1;
-    while (largestDigit * 10 < number)
-    {
-        largestDigit *= 10;
+    if(number == 0){
+        strNumber += ZEROCHAR;
     }
 
-    do
+    while (number > 0)
     {
-        charDigit = (char)((number / largestDigit) + (int)'0');
-        strNumber += charDigit;
-        number = number % largestDigit;
-        largestDigit /= 10;
-    } while (number > 0);
+        strNumber += ZEROCHAR + (number % NUMBASE);
+        number /= NUMBASE;
+    }
+
+    int len = strNumber.length() - 1;
+    int i = 0;
+
+    while (i <= len-i)
+    {
+        swap(strNumber[i], strNumber[len-i]);
+        i++;
+    }
+
     return strNumber;
 }
 
@@ -1057,7 +1075,6 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         }
         return;
     }
-    ///!!! remove when reading
     else if (arg2.isEmpty())
     {
         int attrFound = 0;
@@ -1078,7 +1095,7 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
                     {
                         // this is removal of repeating (therefore not last) argument in a block, so block will never neeed to be deleted here
                         head[i].removeAttr(prevJ);
-                        prevJ = NOINDEX;
+                        attrFound--;
                         attrCount--;
                     }
                     prevJ = j;
@@ -1090,7 +1107,6 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     }
 }
 
-// !!! change to prev
 void eCommands(BlockHolder &tail, int blockCount, const Str &arg1, const Str &arg2)
 {
     int selectorCount, attrCount;
