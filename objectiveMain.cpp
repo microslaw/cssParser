@@ -33,6 +33,7 @@
 #define TABULATOR '\t'
 #define ESCAPECHAR '\r'
 #define COMMANDARGSSEPARATOR ','
+#define DEBUGSTRDEF ".ms-Button:hover"
 
 #define COMMANDRESULTSEPERATOR " == "
 
@@ -47,15 +48,16 @@ char movechar(char toPushBack = NULLC)
 {
     static char buffer[STRLEN];
     static int bufferLen = 0;
+    int tmp = 0;
     if (toPushBack == NULLC)
     {
         if (bufferLen == 0)
         {
-            return (int)getchar();
+            tmp = (int)getchar();
+            return tmp; 
         }
         return buffer[--bufferLen];
     }
-
     buffer[bufferLen] = toPushBack;
     bufferLen++;
     return NULLC;
@@ -75,7 +77,7 @@ bool skip(char toSkip)
 
 bool isWhiteSpace(char ch)
 {
-    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR;
+    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR; // || ch < 0;
 }
 
 void swap(int &first, int &second)
@@ -126,10 +128,24 @@ public:
             this->charList = nullptr;
         }
     }
+
     Str(Str &&old)
     {
         this->reservedSize = old.reservedSize;
         this->charList = old.charList;
+    }
+
+    Str(char *&&old)
+    {
+        this->charList = (char *)malloc(32);
+        int i = 0;
+        while (old[i] != NULLC)
+        {
+            this->reservedSize = 32;
+            this->charList[i] = old[i];
+            i++;
+        }
+        this->charList[i] = NULLC;
     }
 
     // !!! prefferably would use swap here
@@ -233,8 +249,25 @@ public:
         this->reservedSize = 0;
     }
 
+    // Str getDEBUGSTR()
+    // {
+
+    //     static Str DEBUGSTR;
+    //     static int i = 0;
+    //     if (i == 0)
+    //     {
+    //         while (".ms-Button:hover"[i] != NULLC)
+    //         {
+    //             DEBUGSTR += ".ms-Button:hover"[i++];
+    //         }
+    //     }
+    //     return DEBUGSTR;
+    // }
+
     Str &operator+=(char ch)
     {
+        //static Str debug = Str(DEBUGSTRDEF);
+
         if (this->reservedSize == 0)
         {
             this->reservedSize = STRLEN;
@@ -254,7 +287,6 @@ public:
 
         return *this;
     }
-
     char &operator[](int index)
     {
         return this->charList[index];
@@ -891,10 +923,10 @@ void readTill(Str &buffor, char endChar, char endChar2 = NULLC)
 void skipWhitespace()
 {
     char ch = movechar();
-    if (skip(ENDL))
-    {
-        globalLineCounter++;
-    }
+    // if (skip(ENDL))
+    // {
+    //     globalLineCounter++;
+    // }
     while (isWhiteSpace(ch))
     {
         ch = movechar();
@@ -1278,6 +1310,7 @@ void printAll(BlockHolder &head, int blockCount)
     putchar('\n');
     putchar('\n');
     putchar('\n');
+    //    static Str debug = Str(DEBUGSTRDEF);
     int attrCount, selecCount;
 
     for (int i = 0; i < blockCount; i++)
@@ -1288,6 +1321,10 @@ void printAll(BlockHolder &head, int blockCount)
         selecCount = head[i].countSelectors();
         for (int j = 0; j < selecCount; j++)
         {
+            // if (head[i].getSelector(j).name == debug)
+            // {
+            //     int b = 9;
+            // }
             print(head[i].getSelector(j).name);
             putchar(',');
             putchar(' ');
@@ -1311,7 +1348,7 @@ void printAll(BlockHolder &head, int blockCount)
 
 int main()
 {
-//    Str tmp = intToStr(89);
+    //    Str tmp = intToStr(89);
     BlockHolder *head = new BlockHolder;
     int blockCount = readBlocks(head);
     BlockHolder *tail = getTail(head);
@@ -1323,7 +1360,7 @@ int main()
         executeCommands(head, tail, blockCount, commandType, arg1, arg2);
     } while (commandType != NULLC);
 
-    //printAll(*head, blockCount);
+    printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
@@ -1332,3 +1369,4 @@ int main()
 
 // !! selector and attr can inherit
 // print only in str
+//!! delete debugstr
