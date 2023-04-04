@@ -77,7 +77,7 @@ bool skip(char toSkip)
 
 bool isWhiteSpace(char ch)
 {
-    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR;// || ch < -1;
+    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR; // || ch < -1;
 }
 
 void swap(int &first, int &second)
@@ -188,7 +188,7 @@ public:
         {
             this->charList[i] = NULLC;
             i--;
-            if (i < this->reservedSize - STRLEN -1)
+            if (i < this->reservedSize - STRLEN - 1)
             {
                 this->reservedSize -= STRLEN;
                 this->charList = (char *)realloc(this->charList, this->reservedSize);
@@ -637,6 +637,28 @@ public:
         return true;
     }
 
+    int removeDuplicateSelectors(Str toRemove)
+    {
+        int selectorCount;
+        int prevJ;
+        int removed = 0;
+
+        selectorCount = this->countSelectors();
+
+        prevJ = NOINDEX;
+
+        for (int j = 0; j < selectorCount; j++)
+        {
+            if (this->getSelector(j).name == toRemove)
+            {
+                this->removeSelector(j);
+                selectorCount--;
+                removed++;
+            }
+        }
+        return removed;
+    }
+
     void addAttribute(Attr *newAttr)
     {
         if (this->attributeHead == nullptr)
@@ -927,6 +949,8 @@ void readSelectors(Block &block)
         Str &selectorName = newSelector->name;
         readTill(selectorName, SELECTORSEPARATOR, STARTBRACKET);
         selectorName.stripEnd();
+        block.removeDuplicateSelectors(selectorName);
+
         if (selectorName.length() > 0)
         {
 
@@ -1335,7 +1359,7 @@ int main()
         executeCommands(head, tail, blockCount, commandType, arg1, arg2);
     } while (commandType != NULLC);
 
-    //printAll(*head, blockCount);
+    // printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
