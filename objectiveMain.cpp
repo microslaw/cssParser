@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #define T 8
-#define STRLEN 16
+#define STRLEN 8
 
 #define NULLC '\0'
 #define ENDL '\n'
@@ -847,11 +847,25 @@ public:
                 blockCount++;
             }
         }
-        // if (this->next != nullptr)
-        // {
-        //     blockCount+=  this->next->countBlocks();
-        // }
         return blockCount;
+    }
+
+    BlockHolder *removeEmptyNodes()
+    {
+        BlockHolder *newHead = nullptr;
+        if (this->next != nullptr)
+        {
+            newHead = this->next->removeEmptyNodes();
+        }
+        if (this->countBlocks() == 0)
+        {
+            delete this;
+            return newHead;
+        }
+        else
+        {
+            return this;
+        }
     }
 
     // returns reference to block. can jump to another nodes, skips empty blocks
@@ -913,12 +927,10 @@ public:
 void readTill(Str &buffor, char endChar, char endChar2 = NULLC)
 {
     char ch = movechar();
-    int i = 0;
     while (ch != endChar && ch != endChar2)
     {
         buffor += ch;
         ch = movechar();
-        i++;
     }
     movechar(ch);
 }
@@ -1084,8 +1096,9 @@ char readCommand(Str &arg1, Str &arg2)
     return commandType;
 }
 
-void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &arg2)
+void sCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &arg2)
 {
+    BlockHolder &head = *pHead;
     if (arg1.isInt() && arg2.isEmpty())
     {
         int i = arg1.toInt() - 1;
@@ -1126,8 +1139,10 @@ void sCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     }
 }
 
-void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &arg2)
+void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &arg2)
 {
+    BlockHolder &head = *pHead;
+
     if (arg1.isInt() && arg2.isEmpty())
     {
         int i = arg1.toInt() - 1;
@@ -1179,8 +1194,9 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
     }
 }
 
-void eCommands(BlockHolder &tail, int blockCount, const Str &arg1, const Str &arg2)
+void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &arg2)
 {
+    BlockHolder & tail = *pTail;
     int selectorCount, attrCount;
 
     for (int i = -1; i > -blockCount; i--)
@@ -1206,14 +1222,19 @@ void eCommands(BlockHolder &tail, int blockCount, const Str &arg1, const Str &ar
     }
 }
 
-void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &arg2)
+void dCommands(BlockHolder *&pHead, int &blockCount, const Str &arg1, const Str &arg2)
 {
+    BlockHolder &head = *pHead;
     if (arg1.isInt() && arg2.isEmpty())
     {
         int i = arg1.toInt() - 1;
+        static int k = 0;
         if (i < blockCount)
         {
+            k++;
             head[i].~Block(); // an array of blocks was allocated, so delete isn't called to remove one, only it's destructor
+
+            pHead = head.removeEmptyNodes();
             blockCount--;
             // !!!ugly
             Str tmp;
@@ -1235,6 +1256,7 @@ void dCommands(BlockHolder &head, int &blockCount, const Str &arg1, const Str &a
                 {
                     // removing block with no arguments is handled in removeAttr
                     head[i].removeAttr(j);
+                    head.removeEmptyNodes();
 
                     // need to reduce blockCount
                     if (attrCount == 1)
@@ -1276,16 +1298,16 @@ void executeCommands(BlockHolder *&head, BlockHolder *&tail, int &blockCount, ch
     switch (command)
     {
     case COMMANDSELECTORS:
-        sCommands(*head, blockCount, arg1, arg2);
+        sCommands(head, blockCount, arg1, arg2);
         break;
     case COMMANDATTRIBUTES:
-        aCommands(*head, blockCount, arg1, arg2);
+        aCommands(head, blockCount, arg1, arg2);
         break;
     case COMMANDSEARCH:
-        eCommands(*tail, blockCount, arg1, arg2);
+        eCommands(tail, blockCount, arg1, arg2);
         break;
     case COMMANDDELETE:
-        dCommands(*head, blockCount, arg1, arg2);
+        dCommands(head, blockCount, arg1, arg2);
         break;
     case COMMANDSECTIONCOUNT:
         printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
@@ -1322,6 +1344,7 @@ void printAll(BlockHolder &head, int blockCount)
         putchar('\n');
         putchar('\n');
         selecCount = head[i].countSelectors();
+        print(i + 1, '\n');
         for (int j = 0; j < selecCount; j++)
         {
             print(head[i].getSelector(j).name);
@@ -1359,7 +1382,7 @@ int main()
         executeCommands(head, tail, blockCount, commandType, arg1, arg2);
     } while (commandType != NULLC);
 
-    // printAll(*head, blockCount);
+    printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
@@ -1370,3 +1393,4 @@ int main()
 // print only in str
 //!! delete debugstr
 // delete attr when reading data
+// l references
