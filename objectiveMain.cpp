@@ -188,7 +188,7 @@ public:
         {
             this->charList[i] = NULLC;
             i--;
-            if (i < this->reservedSize - 16)
+            if (i < this->reservedSize - STRLEN -1)
             {
                 this->reservedSize -= STRLEN;
                 this->charList = (char *)realloc(this->charList, this->reservedSize);
@@ -891,10 +891,12 @@ public:
 void readTill(Str &buffor, char endChar, char endChar2 = NULLC)
 {
     char ch = movechar();
+    int i = 0;
     while (ch != endChar && ch != endChar2)
     {
         buffor += ch;
         ch = movechar();
+        i++;
     }
     movechar(ch);
 }
@@ -1125,15 +1127,11 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
 
                 if (head[i].getAttr(j).name == arg2)
                 {
-                    lastI = i;
-                    lastJ = j;
+                    printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].getAttr(j).value);
                 }
             }
         }
-        if (lastI != NOINDEX)
-        {
-            printResult(arg1, COMMANDATTRIBUTES, arg2, head[lastI].getAttr(lastJ).value);
-        }
+
         return;
     }
     else if (arg2.isEmpty())
