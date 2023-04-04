@@ -761,7 +761,7 @@ int main()
     // } while (commandType != NULLC);
 
     // chainDeleteBlockHolders(head);
-
+    int * tab = (int*)malloc(80);
     arg1 += 'c';
     arg1.erase();
 
