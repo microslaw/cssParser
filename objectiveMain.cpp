@@ -751,6 +751,7 @@ public:
     }
 };
 
+///!!! half
 class BlockHolder
 {
 public:
@@ -923,6 +924,7 @@ void readAttributes(Block &block)
 
         readTill(attrName, ATTRIBUTENAMEVALSEPARATOR);
         attrName.stripEnd();
+        block.removeDuplicateAttr(attrName);
         skip(ATTRIBUTENAMEVALSEPARATOR);
         skipWhitespace();
 
@@ -1075,13 +1077,7 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         int i = arg1.toInt() - 1;
         if (i < blockCount)
         {
-            Block &block = head[i];
-            int attrCount = block.countAttributes();
-            for (int j = attrCount-1; j >= 0; j--)
-            {
-                j -= block.removeDuplicateAttr(block.getAttr(j).name);
-            }
-            printResult(arg1, COMMANDATTRIBUTES, arg2, block.countAttributes());
+            printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].countAttributes());
         }
         return;
     }
@@ -1118,7 +1114,6 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
 
         for (int i = 0; i < blockCount; i++)
         {
-            head[i].removeDuplicateAttr(arg1);
             attrCount = head[i].countAttributes();
 
             for (int j = 0; j < attrCount; j++)
