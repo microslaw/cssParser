@@ -327,7 +327,8 @@ Str intToStr(int number)
     Str strNumber;
     char charDigit;
 
-    if(number == 0){
+    if (number == 0)
+    {
         strNumber += ZEROCHAR;
     }
 
@@ -340,9 +341,9 @@ Str intToStr(int number)
     int len = strNumber.length() - 1;
     int i = 0;
 
-    while (i <= len-i)
+    while (i <= len - i)
     {
-        swap(strNumber[i], strNumber[len-i]);
+        swap(strNumber[i], strNumber[len - i]);
         i++;
     }
 
@@ -689,6 +690,35 @@ public:
         return true;
     }
 
+    // removes all attributes with this name, except for the last one
+    //  returns number of removals
+    int removeDuplicateAttr(Str toRemove)
+    {
+        int attrCount;
+        int prevJ;
+        int removed = 0;
+
+        attrCount = this->countAttributes();
+
+        prevJ = NOINDEX;
+
+        for (int j = 0; j < attrCount; j++)
+        {
+            if (this->getAttr(j).name == toRemove)
+            {
+                if (prevJ != NOINDEX)
+                {
+                    // this is removal of repeating (therefore not last) argument in a block, so block will never neeed to be deleted here
+                    this->removeAttr(prevJ);
+                    attrCount--;
+                    removed++;
+                }
+                prevJ = j;
+            }
+        }
+        return removed;
+    }
+
     bool isEmpty() const
     {
         if (this->attributeHead == nullptr)
@@ -721,7 +751,6 @@ public:
     }
 };
 
-///!!! half
 class BlockHolder
 {
 public:
@@ -1046,7 +1075,13 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
         int i = arg1.toInt() - 1;
         if (i < blockCount)
         {
-            printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].countAttributes());
+            Block &block = head[i];
+            int attrCount = block.countAttributes();
+            for (int j = attrCount-1; j >= 0; j--)
+            {
+                j -= block.removeDuplicateAttr(block.getAttr(j).name);
+            }
+            printResult(arg1, COMMANDATTRIBUTES, arg2, block.countAttributes());
         }
         return;
     }
@@ -1083,22 +1118,13 @@ void aCommands(BlockHolder &head, int blockCount, const Str &arg1, const Str &ar
 
         for (int i = 0; i < blockCount; i++)
         {
+            head[i].removeDuplicateAttr(arg1);
             attrCount = head[i].countAttributes();
-
-            prevJ = NOINDEX;
 
             for (int j = 0; j < attrCount; j++)
             {
                 if (head[i].getAttr(j).name == arg1)
                 {
-                    if (prevJ != NOINDEX)
-                    {
-                        // this is removal of repeating (therefore not last) argument in a block, so block will never neeed to be deleted here
-                        head[i].removeAttr(prevJ);
-                        attrFound--;
-                        attrCount--;
-                    }
-                    prevJ = j;
                     attrFound++;
                 }
             }
