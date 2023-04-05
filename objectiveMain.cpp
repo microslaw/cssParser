@@ -614,6 +614,23 @@ public:
         return *tmp;
     }
 
+    Selector *selectorIterator(bool reset = false)
+    {
+        static Selector *prevSelector;
+        if (reset)
+        {
+            prevSelector = this->selectorHead;
+        }
+        else
+        {
+            if (prevSelector != nullptr)
+            {
+                prevSelector = prevSelector->next;
+            }
+        }
+        return prevSelector;
+    }
+
     // will check if selector exists
     // !! can be optimized by omitting getSelector()
     bool removeSelector(int i)
@@ -699,6 +716,20 @@ public:
         return *tmp;
     }
 
+    Attr *AttrIterator(bool reset = false)
+    {
+        static Attr *prevAttr;
+        if (reset)
+        {
+            prevAttr = this->attributeHead;
+        }
+        else
+        {
+            prevAttr = prevAttr->next;
+        }
+        return prevAttr;
+    }
+
     // will check if attribute exists
     // !! can be optimized by omitting getAttr()
     // !!! copy to selector
@@ -734,6 +765,37 @@ public:
         }
 
         delete deleted;
+        return true;
+    }
+    // to remove first (attributeHead), pass nullptr
+    bool removeAttr(Attr *prevToRemove)
+    {
+        /// !!! may cause bugs
+        if (prevToRemove != nullptr)
+        {
+            // sets .next of previous node (i-1) to &node(i+1), skipping node i
+            prevToRemove->next = prevToRemove->next->next;
+        }
+        else
+        {
+            this->attributeHead = prevToRemove->next;
+        }
+        if (this->attributeTail == prevToRemove->next)
+        {
+            // check if there are any nodes left
+            if (this->attributeHead != nullptr)
+            {
+                this->attributeTail = prevToRemove;
+            }
+            // if that was the last attribute, entire block is pointless, so it should be deleted
+            else
+            {
+                this->attributeTail = nullptr;
+                this->~Block();
+            }
+        }
+
+        delete prevToRemove->next;
         return true;
     }
 
@@ -854,6 +916,60 @@ public:
             }
         }
         return blockCount;
+    }
+
+    Block *nextBlock(bool reset = false)
+    {
+        static BlockHolder *currentNode;
+        static int blockIndex;
+
+        if (reset)
+        {
+            blockIndex = 0;
+            currentNode = this;
+            return nullptr;
+        }
+
+        if (currentNode = nullptr)
+        {
+            return nullptr;
+        }
+
+        if (currentNode->blocks[blockIndex].isEmpty())
+        {
+            blockIndex++;
+            return nextBlock();
+        }
+
+        if (blockIndex == T)
+        {
+            blockIndex = 0;
+            currentNode = currentNode->next;
+        }
+        return currentNode->blocks + blockIndex++;
+    }
+    Block *prevBlock(bool reset = false)
+    {
+        static BlockHolder *currentNode;
+        static int blockIndex;
+
+        if (reset)
+        {
+            blockIndex = T - 1;
+            currentNode = this;
+        }
+
+        if (currentNode = nullptr)
+        {
+            return nullptr;
+        }
+
+        if (blockIndex < 0)
+        {
+            blockIndex = T - 1;
+            currentNode = currentNode->prev;
+        }
+        return currentNode->blocks + blockIndex--;
     }
 
     BlockHolder *removeEmptyNodes()
@@ -1144,11 +1260,12 @@ void sCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
         int selectorCount;
         for (int i = 0; i < blockCount; i++)
         {
-            selectorCount = head[i].countSelectors();
-
-            for (int j = 0; j < selectorCount; j++)
+            Block &iBlock = head[i];
+            iBlock.selectorIterator(true);
+            Selector *pSelector;
+            while (pSelector = iBlock.selectorIterator())
             {
-                if (head[i].getSelector(j).name == arg1)
+                if (pSelector->name == arg1)
                 {
                     selectorsFound++;
                 }
@@ -1177,13 +1294,14 @@ void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
         int attrCount;
         if (i < blockCount)
         {
-            attrCount = head[i].countAttributes();
+            Block &iBlock = head[i];
+            attrCount = iBlock.countAttributes();
             for (int j = 0; j < attrCount; j++)
             {
 
-                if (head[i].getAttr(j).name == arg2)
+                if (iBlock.getAttr(j).name == arg2)
                 {
-                    printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].getAttr(j).value);
+                    printResult(arg1, COMMANDATTRIBUTES, arg2, iBlock.getAttr(j).value);
                 }
             }
         }
@@ -1193,16 +1311,16 @@ void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
     else if (arg2.isEmpty())
     {
         int attrFound = 0;
-        int attrCount;
+        //int attrCount;
 
         for (int i = 0; i < blockCount; i++)
         {
-            Block &block = head[i];
-            attrCount = block.countAttributes();
-
-            for (int j = 0; j < attrCount; j++)
+            Block &iBlock = head[i];
+            Attr * currentAttr;
+            iBlock.AttrIterator(true);
+            while (currentAttr = iBlock.AttrIterator())
             {
-                if (block.getAttr(j).name == arg1)
+                if (currentAttr->name == arg1)
                 {
                     attrFound++;
                 }
@@ -1219,20 +1337,21 @@ void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &a
 
     for (int i = -1; i > -blockCount; i--)
     {
-        Block &block = tail[i];
-        selectorCount = block.countSelectors();
-        for (int j = 0; j < selectorCount; j++)
+        Block &iBlock = tail[i];
+        iBlock.selectorIterator(true);
+        Selector *pSelector;
+        while (pSelector = iBlock.selectorIterator())
         {
-            if (block.getSelector(j).name == arg1)
+            if (pSelector->name == arg1)
             {
+                Attr *pAttribute;
+                iBlock.AttrIterator(false);
 
-                attrCount = block.countAttributes();
-
-                for (int k = 0; k < attrCount; k++)
+                while (pAttribute = iBlock.AttrIterator())
                 {
-                    if (block.getAttr(k).name == arg2)
+                    if (pAttribute->name == arg2)
                     {
-                        printResult(arg1, COMMANDSEARCH, arg2, block.getAttr(k).value);
+                        printResult(arg1, COMMANDSEARCH, arg2, pAttribute->value);
                         return;
                     }
                 }
@@ -1267,24 +1386,26 @@ void dCommands(BlockHolder *&pHead, int &blockCount, const Str &arg1, const Str 
         bool deleteSuccesfull = false;
         if (i < blockCount)
         {
-            int attrCount = head[i].countAttributes();
-
-            for (int j = 0; j < attrCount; j++)
+            Block &iBlock = head[i];
+            Attr *pAttr, *prevAttr;
+            iBlock.AttrIterator(true);
+            while (pAttr = iBlock.AttrIterator())
             {
-                if (head[i].getAttr(j).name == arg2)
+                if (pAttr->name == arg2)
                 {
                     // removing block with no arguments is handled in removeAttr
-                    head[i].removeAttr(j);
-                    head.removeEmptyNodes();
 
-                    // need to reduce blockCount
-                    if (attrCount == 1)
+                    if (iBlock.removeAttr(prevAttr))
                     {
                         blockCount--;
                     }
+                    head.removeEmptyNodes();
+
+                    // need to reduce blockCount
                     deleteSuccesfull = true;
                     break;
                 }
+                prevAttr = pAttr;
             }
         }
 
@@ -1401,10 +1522,31 @@ int main()
         {
             head = new BlockHolder;
         }
+        // print('\n');
+        // print('\n');
+
+        // BlockHolder *tmp = head;
+        // while (tmp != nullptr)
+        // {
+        //     print('\n');
+        //     print('\t');
+        //     print('\t');
+        //     for (int i = 0; i < T; i++)
+        //     {
+        //         if (tmp->blocks[i].isEmpty())
+        //         {
+        //             print('e');
+        //         }
+        //         else
+        //         {
+        //             print('f');
+        //         }
+        //     }
+        //     tmp = tmp->next;
+        // }
 
         blockCount = readBlocks(head, tail, blockCount);
         endOfFile = readAndExecuteCommands(head, tail, blockCount);
-
     }
 
     // printAll(*head, blockCount);
