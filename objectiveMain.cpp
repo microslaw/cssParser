@@ -805,6 +805,7 @@ public:
     Block *blocks;
     BlockHolder *next;
     BlockHolder *prev;
+    int lastBlock;
 
     BlockHolder(BlockHolder *prev = nullptr)
     {
@@ -817,25 +818,26 @@ public:
             prev->next = this;
         }
         this->blocks = new Block[T];
+        this->lastBlock = 0;
     }
 
     // will add new block in first empty slot
     // if no argument is passed will return pointer to first empty slot
     Block *addBlock(Block *newBlock = nullptr)
     {
-        for (int i = 0; i < T; i++)
+        if (newBlock == nullptr)
         {
-            if (blocks[i].isEmpty())
-            {
-                if (newBlock != nullptr)
-                {
-                    blocks[i] = *newBlock; ///!!! move constructor?
-                }
-                return blocks + i;
-            }
+            newBlock = new Block;
         }
         if (this->next == nullptr)
         {
+
+            if (this->lastBlock != T)
+            {
+                blocks[this->lastBlock] = *newBlock;
+                this->lastBlock++;
+                return this->blocks + this->lastBlock - 1;
+            }
             this->next = new BlockHolder(this);
         }
         return this->next->addBlock(newBlock);
@@ -878,10 +880,8 @@ public:
     // !! optimize moving between blocks
     Block &operator[](int index)
     {
-        static int a = 0;
         if (index >= 0)
         {
-            a++;
             for (int i = 0; i < T; i++)
             {
                 if (!(this->blocks)[i].isEmpty())
@@ -897,7 +897,6 @@ public:
         }
         else
         {
-            a++;
             // move by 1
             index = -index - 1;
 
@@ -1132,9 +1131,10 @@ void sCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
     {
         int i = arg1.toInt() - 1;
         int j = arg2.toInt() - 1;
-        if (i < blockCount && j < head[i].countSelectors())
+        Block &iBlock = head[i];
+        if (i < blockCount && j < iBlock.countSelectors())
         {
-            printResult(arg1, COMMANDSELECTORS, arg2, head[i].getSelector(j).name);
+            printResult(arg1, COMMANDSELECTORS, arg2, iBlock.getSelector(j).name);
         }
         return;
     }
@@ -1197,7 +1197,7 @@ void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
 
         for (int i = 0; i < blockCount; i++)
         {
-            Block & block = head[i];
+            Block &block = head[i];
             attrCount = block.countAttributes();
 
             for (int j = 0; j < attrCount; j++)
@@ -1405,9 +1405,9 @@ int main()
         blockCount = readBlocks(head, tail, blockCount);
         endOfFile = readAndExecuteCommands(head, tail, blockCount);
 
-    } 
+    }
 
-    printAll(*head, blockCount);
+    // printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
