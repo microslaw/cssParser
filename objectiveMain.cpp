@@ -235,6 +235,11 @@ public:
         return true;
     }
 
+    bool isStr() const
+    {
+        return (!isInt() && !isEmpty());
+    }
+
     int toInt() const
     {
         int result = 0;
@@ -614,21 +619,18 @@ public:
         return *tmp;
     }
 
-    Selector *selectorIterator(bool reset = false)
+    Selector *searchForSelector(const Str &val) const
     {
-        static Selector *prevSelector;
-        if (reset)
+        Selector *currentSelector = this->selectorHead;
+        while (currentSelector != nullptr)
         {
-            prevSelector = this->selectorHead;
-        }
-        else
-        {
-            if (prevSelector != nullptr)
+            if (currentSelector->name == val)
             {
-                prevSelector = prevSelector->next;
+                return currentSelector;
             }
+            currentSelector = currentSelector->next;
         }
-        return prevSelector;
+        return nullptr;
     }
 
     // will check if selector exists
@@ -716,18 +718,18 @@ public:
         return *tmp;
     }
 
-    Attr *AttrIterator(bool reset = false)
+    Attr *searchForAttr(const Str &val) const
     {
-        static Attr *prevAttr;
-        if (reset)
+        Attr *currentAttr = this->attributeHead;
+        while (currentAttr != nullptr)
         {
-            prevAttr = this->attributeHead;
+            if (currentAttr->name == val)
+            {
+                return currentAttr;
+            }
+            currentAttr = currentAttr->next;
         }
-        else
-        {
-            prevAttr = prevAttr->next;
-        }
-        return prevAttr;
+        return nullptr;
     }
 
     // will check if attribute exists
@@ -918,6 +920,7 @@ public:
         return blockCount;
     }
 
+    /// !!! fix this
     Block *nextBlock(bool reset = false)
     {
         static BlockHolder *currentNode;
@@ -930,7 +933,7 @@ public:
             return nullptr;
         }
 
-        if (currentNode = nullptr)
+        if (currentNode == nullptr)
         {
             return nullptr;
         }
@@ -946,6 +949,10 @@ public:
             blockIndex = 0;
             currentNode = currentNode->next;
         }
+        if (currentNode == nullptr)
+        {
+            return nullptr;
+        }
         return currentNode->blocks + blockIndex++;
     }
     Block *prevBlock(bool reset = false)
@@ -959,7 +966,7 @@ public:
             currentNode = this;
         }
 
-        if (currentNode = nullptr)
+        if (currentNode == nullptr)
         {
             return nullptr;
         }
@@ -968,6 +975,10 @@ public:
         {
             blockIndex = T - 1;
             currentNode = currentNode->prev;
+        }
+        if (currentNode == nullptr)
+        {
+            return nullptr;
         }
         return currentNode->blocks + blockIndex--;
     }
@@ -1247,28 +1258,29 @@ void sCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
     {
         int i = arg1.toInt() - 1;
         int j = arg2.toInt() - 1;
-        Block &iBlock = head[i];
-        if (i < blockCount && j < iBlock.countSelectors())
-        {
-            printResult(arg1, COMMANDSELECTORS, arg2, iBlock.getSelector(j).name);
-        }
-        return;
-    }
-    else if (arg2.isEmpty())
-    {
-        int selectorsFound = 0;
-        int selectorCount;
-        for (int i = 0; i < blockCount; i++)
+        if (i < blockCount)
         {
             Block &iBlock = head[i];
-            iBlock.selectorIterator(true);
-            Selector *pSelector;
-            while (pSelector = iBlock.selectorIterator())
+            if (j < iBlock.countSelectors())
             {
-                if (pSelector->name == arg1)
-                {
-                    selectorsFound++;
-                }
+                /// !!! switch getSelector() to pointer?
+                printResult(arg1, COMMANDSELECTORS, arg2, iBlock.getSelector(j).name);
+            }
+        }
+    }
+    else if (arg1.isStr() && arg2.isEmpty())
+    {
+        int selectorsFound = 0;
+        Block *currentBlock;
+        head.nextBlock(true);
+
+        // pointer assinged to currentBlock will be treated as a condition in while
+        // loop will end when head.nextBlock() returns nullptr
+        while (currentBlock = head.nextBlock())
+        {
+            if (currentBlock->searchForSelector(arg1) != nullptr)
+            {
+                selectorsFound++;
             }
         }
         printResult(arg1, COMMANDSELECTORS, arg2, selectorsFound);
@@ -1286,111 +1298,94 @@ void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &a
         {
             printResult(arg1, COMMANDATTRIBUTES, arg2, head[i].countAttributes());
         }
-        return;
     }
-    else if (arg1.isInt())
+    else if (arg1.isInt() && arg2.isStr())
     {
         int i = arg1.toInt() - 1;
-        int attrCount;
+        Attr *foundAttr;
         if (i < blockCount)
         {
-            Block &iBlock = head[i];
-            attrCount = iBlock.countAttributes();
-            for (int j = 0; j < attrCount; j++)
+            foundAttr = head[i].searchForAttr(arg2);
+            if (foundAttr != nullptr)
             {
-
-                if (iBlock.getAttr(j).name == arg2)
-                {
-                    printResult(arg1, COMMANDATTRIBUTES, arg2, iBlock.getAttr(j).value);
-                }
+                printResult(arg1, COMMANDATTRIBUTES, arg2, foundAttr->value);
             }
         }
-
-        return;
     }
-    else if (arg2.isEmpty())
+    else if (arg1.isStr() && arg2.isEmpty())
     {
-        int attrFound = 0;
-        //int attrCount;
+        int attrFoundCount = 0;
 
-        for (int i = 0; i < blockCount; i++)
+        Block *currentBlock;
+        Attr *foundAttr;
+
+        head.nextBlock(true);
+        // pointer assinged to currentBlock will be treated as a condition in while
+        // loop will end when head.nextBlock() returns nullptr
+        while (currentBlock = head.nextBlock())
         {
-            Block &iBlock = head[i];
-            Attr * currentAttr;
-            iBlock.AttrIterator(true);
-            while (currentAttr = iBlock.AttrIterator())
+            Block &iBlock = *currentBlock;
+            foundAttr = iBlock.searchForAttr(arg1);
+            if (foundAttr != nullptr)
             {
-                if (currentAttr->name == arg1)
-                {
-                    attrFound++;
-                }
+                attrFoundCount++;
             }
         }
-        printResult(arg1, COMMANDATTRIBUTES, arg2, attrFound);
+        printResult(arg1, COMMANDATTRIBUTES, arg2, attrFoundCount);
     }
 }
 
 void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &arg2)
 {
-    BlockHolder &tail = *pTail;
-    int selectorCount, attrCount;
-
-    for (int i = -1; i > -blockCount; i--)
+    if (arg1.isStr() && arg2.isStr())
     {
-        Block &iBlock = tail[i];
-        iBlock.selectorIterator(true);
+        BlockHolder &tail = *pTail;
+        Block *currentBlock;
         Selector *pSelector;
-        while (pSelector = iBlock.selectorIterator())
-        {
-            if (pSelector->name == arg1)
-            {
-                Attr *pAttribute;
-                iBlock.AttrIterator(false);
+        Attr *foundAttr;
+        int selectorCount, attrCount;
 
-                while (pAttribute = iBlock.AttrIterator())
+        for (int i = -1; i > -blockCount; i--)
+            tail.prevBlock(true);
+        while (currentBlock = tail.prevBlock())
+        {
+            Block &iBlock = *currentBlock;
+            pSelector = iBlock.selectorHead;
+
+            while (pSelector != nullptr)
+            {
+                if (pSelector->name == arg1)
                 {
-                    if (pAttribute->name == arg2)
+                    foundAttr = iBlock.searchForAttr(arg2);
+                    if (foundAttr != nullptr)
                     {
-                        printResult(arg1, COMMANDSEARCH, arg2, pAttribute->value);
+                        printResult(arg1, COMMANDSEARCH, arg2, foundAttr->value);
                         return;
                     }
                 }
+                pSelector = pSelector->next;
             }
         }
     }
 }
 
-void dCommands(BlockHolder *&pHead, int &blockCount, const Str &arg1, const Str &arg2)
+void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const Str &arg1, const Str &arg2)
 {
     BlockHolder &head = *pHead;
-    if (arg1.isInt() && arg2.isEmpty())
-    {
-        int i = arg1.toInt() - 1;
-        static int k = 0;
-        if (i < blockCount)
-        {
-            k++;
-            head[i].~Block(); // an array of blocks was allocated, so delete isn't called to remove one, only it's destructor
 
-            pHead = head.removeEmptyNodes();
-            blockCount--;
-            // !!!ugly
-            Str tmp;
-            tmp += COMMANDNOARG2;
-            printResult(arg1, COMMANDDELETE, tmp, getDELETENOTIFICATION());
-        }
-    }
-    else if (arg1.isInt())
+    if (arg1.isInt() && arg2.isStr())
     {
+
         int i = arg1.toInt() - 1;
         bool deleteSuccesfull = false;
         if (i < blockCount)
         {
             Block &iBlock = head[i];
-            Attr *pAttr, *prevAttr;
-            iBlock.AttrIterator(true);
-            while (pAttr = iBlock.AttrIterator())
+            Attr *pAttr = iBlock.attributeHead;
+            Attr *prevAttr;
+            while (pAttr != nullptr)
             {
+
                 if (pAttr->name == arg2)
                 {
                     // removing block with no arguments is handled in removeAttr
@@ -1406,6 +1401,7 @@ void dCommands(BlockHolder *&pHead, int &blockCount, const Str &arg1, const Str 
                     break;
                 }
                 prevAttr = pAttr;
+                pAttr = pAttr->next;
             }
         }
 
@@ -1413,6 +1409,49 @@ void dCommands(BlockHolder *&pHead, int &blockCount, const Str &arg1, const Str 
         {
             /// !!! also ugly
             printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
+        }
+    }
+    else if (arg1.isInt() && arg2.isEmpty())
+    {
+        BlockHolder *currentBlockHolder = pHead;
+        int i = arg1.toInt() - 1;
+        int j;
+
+        while (currentBlockHolder != nullptr)
+        {
+
+            for (j = 0; j < T || i > 0; j++)
+            {
+                if (!(currentBlockHolder->blocks[i].isEmpty()))
+                {
+                    i--;
+                }
+            }
+            if (i == 0)
+            {
+
+                currentBlockHolder->blocks[j].~Block(); // after delete head[i] calling head[i].isEmpty() may result in segmentation fault
+                if (currentBlockHolder->countBlocks() == 0)
+                {
+                    if (currentBlockHolder->prev = nullptr)
+                    {
+                        pHead = currentBlockHolder->next;
+                    }
+                    if (currentBlockHolder->next = nullptr)
+                    {
+                        pTail = currentBlockHolder->prev;
+                    }
+                    delete currentBlockHolder;
+                }
+                blockCount--;
+
+                // !!!ugly
+                Str tmp;
+                tmp += COMMANDNOARG2;
+                printResult(arg1, COMMANDDELETE, tmp, getDELETENOTIFICATION());
+            }
+
+            currentBlockHolder = currentBlockHolder->next;
         }
     }
 }
@@ -1431,7 +1470,7 @@ void executeCommand(BlockHolder *&head, BlockHolder *&tail, int &blockCount, cha
         eCommands(tail, blockCount, arg1, arg2);
         break;
     case COMMANDDELETE:
-        dCommands(head, blockCount, arg1, arg2);
+        dCommands(head, tail, blockCount, arg1, arg2);
         break;
     case COMMANDSECTIONCOUNT:
         printResult(arg1, COMMANDSECTIONCOUNT, arg2, blockCount);
@@ -1522,28 +1561,6 @@ int main()
         {
             head = new BlockHolder;
         }
-        // print('\n');
-        // print('\n');
-
-        // BlockHolder *tmp = head;
-        // while (tmp != nullptr)
-        // {
-        //     print('\n');
-        //     print('\t');
-        //     print('\t');
-        //     for (int i = 0; i < T; i++)
-        //     {
-        //         if (tmp->blocks[i].isEmpty())
-        //         {
-        //             print('e');
-        //         }
-        //         else
-        //         {
-        //             print('f');
-        //         }
-        //     }
-        //     tmp = tmp->next;
-        // }
 
         blockCount = readBlocks(head, tail, blockCount);
         endOfFile = readAndExecuteCommands(head, tail, blockCount);
