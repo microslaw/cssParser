@@ -48,16 +48,17 @@ char movechar(char toPushBack = NULLC)
 {
     static char buffer[STRLEN];
     static int bufferLen = 0;
-    int tmp = 0;
+    char tmp = 0;
     if (toPushBack == NULLC)
     {
         if (bufferLen == 0)
         {
+            tmp = getchar();
             if (tmp == ENDL)
             {
                 globalLineCounter++;
             }
-            return getchar();
+            return tmp;
         }
         return buffer[--bufferLen];
     }
@@ -1394,7 +1395,7 @@ int main()
     BlockHolder *tail;
     int blockCount = 0;
     bool endOfFile = false;
-    do
+    while (!endOfFile)
     {
         if (head == nullptr)
         {
@@ -1404,7 +1405,7 @@ int main()
         blockCount = readBlocks(head, tail, blockCount);
         endOfFile = readAndExecuteCommands(head, tail, blockCount);
 
-    } while (!endOfFile);
+    } 
 
     printAll(*head, blockCount);
 
