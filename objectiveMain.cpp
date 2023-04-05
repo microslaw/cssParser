@@ -780,7 +780,14 @@ public:
         }
         else
         {
-            this->attributeHead = prevToRemove->next;
+            if (this->attributeHead == nullptr)
+            {
+                return false;
+            }
+            prevToRemove = this->attributeHead;
+            this->attributeHead = attributeHead->next;
+            delete prevToRemove;
+            return true;
         }
         if (this->attributeTail == prevToRemove->next)
         {
@@ -1039,6 +1046,22 @@ public:
                 }
             };
             return (*(this->prev))[-index];
+        }
+    }
+
+    void tryDelete(BlockHolder *&pHead, BlockHolder *&pTail)
+    {
+        if (this->countBlocks() == 0)
+        {
+            if (this->prev = nullptr)
+            {
+                pHead = this->next;
+            }
+            if (this->next = nullptr)
+            {
+                pTail = this->prev;
+            }
+            delete this;
         }
     }
 
@@ -1375,84 +1398,85 @@ void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const 
 
     if (arg1.isInt() && arg2.isStr())
     {
-
+        BlockHolder *currentBlockHolder = pHead;
         int i = arg1.toInt() - 1;
-        bool deleteSuccesfull = false;
-        if (i < blockCount)
+        int j = 0;
+
+        while (currentBlockHolder != nullptr && i > 0)
         {
-            Block &iBlock = head[i];
-            Attr *pAttr = iBlock.attributeHead;
-            Attr *prevAttr;
-            while (pAttr != nullptr)
+
+            for (j = 0; j < T && i > 0; j++)
             {
-
-                if (pAttr->name == arg2)
+                if (!(currentBlockHolder->blocks[j].isEmpty()))
                 {
-                    // removing block with no arguments is handled in removeAttr
-
-                    if (iBlock.removeAttr(prevAttr))
-                    {
-                        blockCount--;
-                    }
-                    head.removeEmptyNodes();
-
-                    // need to reduce blockCount
-                    deleteSuccesfull = true;
-                    break;
+                    i--;
                 }
-                prevAttr = pAttr;
-                pAttr = pAttr->next;
+            }
+            if (i != 0)
+            {
+                currentBlockHolder = currentBlockHolder->next;
             }
         }
-
-        if (deleteSuccesfull)
+        if (currentBlockHolder == nullptr)
         {
-            /// !!! also ugly
-            printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
+            return;
         }
+        Block &block = currentBlockHolder->blocks[j];
+        Attr *currentAttr = block.attributeHead;
+        Attr *prevAttr = nullptr;
+        blockCount -= currentBlockHolder->countBlocks();
+        while (currentAttr != nullptr)
+        {
+            if (currentAttr->name == arg2)
+            {
+                block.removeAttr(prevAttr);
+                break;
+            }
+            prevAttr = currentAttr;
+            currentAttr = currentAttr->next;
+        }
+        blockCount += currentBlockHolder->countBlocks();
+
+        currentBlockHolder->tryDelete(pHead, pTail);
+
+        /// !!! also ugly
+        printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
     }
     else if (arg1.isInt() && arg2.isEmpty())
     {
         BlockHolder *currentBlockHolder = pHead;
         int i = arg1.toInt() - 1;
-        int j;
+        int j = 0;
 
-        while (currentBlockHolder != nullptr)
+        while (currentBlockHolder != nullptr && i > 0)
         {
 
-            for (j = 0; j < T || i > 0; j++)
+            for (j = 0; j < T && i > 0; j++)
             {
-                if (!(currentBlockHolder->blocks[i].isEmpty()))
+                if (!(currentBlockHolder->blocks[j].isEmpty()))
                 {
                     i--;
                 }
             }
-            if (i == 0)
+            if (i != 0)
             {
-
-                currentBlockHolder->blocks[j].~Block(); // after delete head[i] calling head[i].isEmpty() may result in segmentation fault
-                if (currentBlockHolder->countBlocks() == 0)
-                {
-                    if (currentBlockHolder->prev = nullptr)
-                    {
-                        pHead = currentBlockHolder->next;
-                    }
-                    if (currentBlockHolder->next = nullptr)
-                    {
-                        pTail = currentBlockHolder->prev;
-                    }
-                    delete currentBlockHolder;
-                }
-                blockCount--;
-
-                // !!!ugly
-                Str tmp;
-                tmp += COMMANDNOARG2;
-                printResult(arg1, COMMANDDELETE, tmp, getDELETENOTIFICATION());
+                currentBlockHolder = currentBlockHolder->next;
             }
-
-            currentBlockHolder = currentBlockHolder->next;
         }
+        if (currentBlockHolder == nullptr)
+        {
+            return;
+        }
+
+        currentBlockHolder->blocks[j].~Block(); // after delete head[i] calling head[i].isEmpty() may result in segmentation fault
+        blockCount--;
+        currentBlockHolder->tryDelete(pHead, pTail);
+
+        // !!!ugly
+        Str tmp;
+        tmp += COMMANDNOARG2;
+        printResult(arg1, COMMANDDELETE, tmp, getDELETENOTIFICATION());
+        return;
     }
 }
 
