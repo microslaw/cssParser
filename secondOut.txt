@@ -4,7 +4,7 @@
 20,D,font-family == deleted
 20,D,padding == deleted
 20,D,width == deleted
-? == 20
+? == 16
 
 
 
@@ -133,30 +133,4 @@ h1, {
 	background-color: #CCCCCC;
 	border: solid 1px #888888;
 	cursor: pointer;
-}
-
-17
-.menu_selectedNodestyle, {
-	padding: 5px 5px 5px 5px;
-	font-weight: bold;
-	color: #0066CB;
-}
-
-18
-{
-	background-color: #CCCCCC;
-	border: solid 1px #888888;
-	cursor: pointer;
-}
-
-19
-h1, .menu_selectedNodestyle, {
-	padding: 5px 5px 5px 5px;
-	font-weight: bold;
-	color: #0066CB;
-}
-
-20
-.menu_nodeStyle, {
-	border: solid 1px White;
 }

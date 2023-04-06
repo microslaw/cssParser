@@ -1449,7 +1449,9 @@ void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const 
             }
             prevAttr = currentAttr;
             currentAttr = currentAttr->next;
-            if(currentAttr == nullptr){
+            if (currentAttr == nullptr)
+            {
+                blockCount += currentBlockHolder->countBlocks();
                 return;
             }
         }
@@ -1593,7 +1595,7 @@ int main()
         endOfFile = readAndExecuteCommands(head, tail, blockCount);
     }
 
-    // printAll(*head, blockCount);
+    //printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
