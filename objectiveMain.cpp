@@ -9,8 +9,6 @@
 #define ENDL '\n'
 #define NOINDEX -1
 
-#define SELECTORENDs '}'
-
 #define COMMANDSTART "????"
 #define COMMANDEND "****"
 
@@ -33,32 +31,25 @@
 #define TABULATOR '\t'
 #define ESCAPECHAR '\r'
 #define COMMANDARGSSEPARATOR ','
-#define DEBUGSTRDEF ".ms-Button:hover"
-
 #define COMMANDRESULTSEPERATOR " == "
 
 #define NUMBASE 10
 
 #define DELETENOTIFICATION "deleted"
 
-int globalLineCounter = 0;
+
+
 
 // getchar but can ungetch char if it is passed as argument
 char movechar(char toPushBack = NULLC)
 {
     static char buffer[STRLEN];
     static int bufferLen = 0;
-    char tmp = 0;
     if (toPushBack == NULLC)
     {
         if (bufferLen == 0)
         {
-            tmp = getchar();
-            if (tmp == ENDL)
-            {
-                globalLineCounter++;
-            }
-            return tmp;
+            return getchar();
         }
         return buffer[--bufferLen];
     }
@@ -81,7 +72,7 @@ bool skip(char toSkip)
 
 bool isWhiteSpace(char ch)
 {
-    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR; // || ch < -1;
+    return ch == SPACE || ch == TABULATOR || ch == ENDL || ch == ESCAPECHAR;
 }
 
 void swap(int &first, int &second)
@@ -103,10 +94,9 @@ class Str
 
 public:
     char *charList;
-    // reservedSize includes NULLC (minimum is 1), if 0 no memory allocated
+    // reservedSize includes NULLC (minimum is 1), if 0 no memory has been allocated
     int reservedSize;
 
-    // size excludes NULLC
     Str()
     {
         this->reservedSize = 0;
@@ -1595,7 +1585,7 @@ int main()
         endOfFile = readAndExecuteCommands(head, tail, blockCount);
     }
 
-    //printAll(*head, blockCount);
+    // printAll(*head, blockCount);
 
     chainDeleteBlockHolders(head);
 
