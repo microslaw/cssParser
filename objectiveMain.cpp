@@ -68,7 +68,7 @@ void executeCommand(BlockHolder *&head, BlockHolder *&tail, int &blockCount, cha
 void sCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &arg2);
 void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &arg2);
 void aCommands(BlockHolder *pHead, int blockCount, const Str &arg1, const Str &arg2);
-void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const Str &arg1, const Str &arg2);
+void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const Str &arg1, Str &arg2);
 
 Str intToStr(int number);
 BlockHolder *getTail(BlockHolder *head);
@@ -129,6 +129,18 @@ public:
             i++;
         }
         this->charList[i] = NULLC;
+    }
+
+    Str(const char text[])
+    {
+        this->reservedSize = 0;
+        this->charList = nullptr;
+
+        for (int i = 0; text[i] != NULLC; i++)
+        {
+            (*this) += text[i];
+        }
+        
     }
 
     Str &operator=(const Str &right)
@@ -315,35 +327,6 @@ public:
     }
 };
 
-/// !!! better idea hera
-Str getCOMMANDRESULTSEPERATORSTR()
-{
-    static Str COMMANDRESULTSEPERATORSTR;
-    static int i = 0;
-    if (i == 0)
-    {
-        while (COMMANDRESULTSEPERATOR[i] != NULLC)
-        {
-            COMMANDRESULTSEPERATORSTR += COMMANDRESULTSEPERATOR[i++];
-        }
-    }
-    return COMMANDRESULTSEPERATORSTR;
-}
-
-Str getDELETENOTIFICATION()
-{
-    static Str DELETENOTIFICATIONSTR;
-    static int i = 0;
-    if (i == 0)
-    {
-        while (DELETENOTIFICATION[i] != NULLC)
-        {
-            DELETENOTIFICATIONSTR += DELETENOTIFICATION[i++];
-        }
-    }
-    return DELETENOTIFICATIONSTR;
-}
-
 class Selector
 {
 public:
@@ -451,6 +434,8 @@ public:
     {
         this->selectorHead = selectors;
         this->attributeHead = attributes;
+        this->selectorTail = selectors;
+        this->attributeTail = attributes;
     }
 
     void addSelector(Selector *newSelector)
@@ -504,50 +489,58 @@ public:
         return nullptr;
     }
 
-    // will check if selector exists
-    // !!! can be optimized by omitting getSelector()
-    bool removeSelector(int i)
+    bool removeSelector(Selector *prevToRemove)
     {
-        if (i > this->countSelectors())
+        Selector *toRemove;
+        if (prevToRemove != nullptr)
         {
-            return false;
-        }
-        Selector *deleted = &(this->getSelector(i));
-        if (i > 0)
-        {
-            (this->getSelector(i - 1)).next = &(this->getSelector(i + 1));
+            toRemove = prevToRemove->next;
+            prevToRemove->next = toRemove->next;
         }
         else
         {
-            this->selectorHead = deleted->next;
-        }
-        if (this->selectorTail == deleted)
-        {
-            this->selectorTail = &(this->getSelector(i - 1));
+            if (this->selectorHead == nullptr)
+            {
+                return true;
+            }
+            else
+            {
+                toRemove = this->selectorHead;
+                this->selectorHead = toRemove->next;
+            }
+            if (this->selectorTail == toRemove)
+            {
+                this->selectorTail = prevToRemove;
+            }
         }
 
-        delete deleted;
+        delete toRemove;
         return true;
     }
 
     int removeDuplicateSelectors(Str toRemove)
     {
-        int selectorCount;
-        int prevJ;
         int removed = 0;
+        Selector *currentSelector = this->selectorHead;
+        Selector *prevSelector = nullptr;
+        Selector *lastFoundSelector = nullptr;
+        Selector *prevToFoundSelector = nullptr;
 
-        selectorCount = this->countSelectors();
-
-        prevJ = NOINDEX;
-
-        for (int j = 0; j < selectorCount; j++)
+        while (currentSelector != nullptr)
         {
-            if (this->getSelector(j).name == toRemove)
+            if (currentSelector->name == toRemove)
             {
-                this->removeSelector(j);
-                selectorCount--;
-                removed++;
+                if (lastFoundSelector != nullptr)
+                {
+                    // this is removal of repeating (therefore not last) argument in a block, so block will never neeed to be deleted here
+                    this->removeSelector(prevToFoundSelector);
+                    removed++;
+                }
+                lastFoundSelector = currentSelector;
+                prevToFoundSelector = prevSelector;
             }
+            prevSelector = currentSelector;
+            currentSelector = currentSelector->next;
         }
         return removed;
     }
@@ -604,49 +597,12 @@ public:
         return nullptr;
     }
 
-    // will check if attribute exists
-    // !!! can be optimized by omitting getAttr()
-    // !!! copy to selector
-    bool removeAttr(int i)
-    {
-        if (i > this->countAttributes())
-        {
-            return false;
-        }
-        Attr *deleted = &(this->getAttr(i));
-        if (i > 0)
-        {
-            (this->getAttr(i - 1)).next = &(this->getAttr(i + 1));
-        }
-        else
-        {
-            this->attributeHead = deleted->next;
-        }
-        if (this->attributeTail == deleted)
-        {
-            // check if there are any nodes left
-            if (this->attributeHead != nullptr)
-            {
-                this->attributeTail = &(this->getAttr(i - 1));
-            }
-            // if that was the last attribute, entire block is pointless, so it should be deleted
-            else
-            {
-                this->attributeTail = nullptr;
-                this->~Block();
-            }
-        }
-
-        delete deleted;
-        return true;
-    }
     // to remove first (attributeHead), pass nullptr
     bool removeAttr(Attr *prevToRemove)
     {
         Attr *toRemove;
         if (prevToRemove != nullptr)
         {
-            // sets .next of previous node (i-1) to &node(i+1), skipping node i
             toRemove = prevToRemove->next;
             prevToRemove->next = prevToRemove->next->next;
         }
@@ -682,27 +638,28 @@ public:
     // returns number of removals
     int removeDuplicateAttr(Str toRemove)
     {
-        int attrCount;
-        int prevJ;
         int removed = 0;
 
-        attrCount = this->countAttributes();
+        Attr *currentAttr = this->attributeHead;
+        Attr *prevAttr = nullptr;
+        Attr *lastFoundAttr = nullptr;
+        Attr *prevToFoundAttr = nullptr;
 
-        prevJ = NOINDEX;
-
-        for (int j = 0; j < attrCount; j++)
+        while (currentAttr != nullptr)
         {
-            if (this->getAttr(j).name == toRemove)
+            if (currentAttr->name == toRemove)
             {
-                if (prevJ != NOINDEX)
+                if (lastFoundAttr != nullptr)
                 {
                     // this is removal of repeating (therefore not last) argument in a block, so block will never neeed to be deleted here
-                    this->removeAttr(prevJ);
-                    attrCount--;
+                    this->removeAttr(prevToFoundAttr);
                     removed++;
                 }
-                prevJ = j;
+                lastFoundAttr = currentAttr;
+                prevToFoundAttr = prevAttr;
             }
+            prevAttr = currentAttr;
+            currentAttr = currentAttr->next;
         }
         return removed;
     }
@@ -1079,18 +1036,11 @@ void printResult(const Str &arg1, char commandType, const Str &arg2, const Str &
         print(COMMANDSECTIONCOUNT);
     }
 
-    /// !!! ugly
-    static Str COMMANDRESULTSEPERATORSTR;
-    if (COMMANDRESULTSEPERATORSTR.isEmpty())
-    {
-        COMMANDRESULTSEPERATORSTR = getCOMMANDRESULTSEPERATORSTR();
-    }
-
-    print(COMMANDRESULTSEPERATORSTR);
+    print(Str(COMMANDRESULTSEPERATOR));
     print(result, ENDL);
 }
 
-void printResult(const Str &arg1, char commandType, const Str &arg2,  int result)
+void printResult(const Str &arg1, char commandType, const Str &arg2, int result)
 {
     Str resultStr;
     resultStr = intToStr(result);
@@ -1454,7 +1404,6 @@ void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &a
         Block *currentBlock;
         Selector *pSelector;
         Attr *foundAttr;
-        int selectorCount, attrCount;
 
         for (int i = -1; i > -blockCount; i--)
             tail.prevBlock(true);
@@ -1482,7 +1431,9 @@ void eCommands(BlockHolder *pTail, int blockCount, const Str &arg1, const Str &a
 
 void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const Str &arg1, const Str &arg2)
 {
-    BlockHolder &head = *pHead;
+    BlockHolder *currentBlockHolder = pHead;
+    Str attrName;
+
     if (arg1.isInt() && arg2.isStr())
     {
         BlockHolder *currentBlockHolder = pHead;
@@ -1496,10 +1447,14 @@ void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const 
         Block &block = currentBlockHolder->blocks[blockIndex];
         Attr *currentAttr = block.attributeHead;
         Attr *prevAttr = nullptr;
-        blockCount -= currentBlockHolder->countBlocks();
-        while (true)
+
+        if (block.searchForAttr(arg2) == nullptr)
         {
-            /// !!! other type of ugly
+            return;
+        }
+
+        while (currentAttr != nullptr)
+        {
             if (currentAttr->name == arg2)
             {
                 block.removeAttr(prevAttr);
@@ -1507,40 +1462,28 @@ void dCommands(BlockHolder *&pHead, BlockHolder *&pTail, int &blockCount, const 
             }
             prevAttr = currentAttr;
             currentAttr = currentAttr->next;
-            if (currentAttr == nullptr)
-            {
-                blockCount += currentBlockHolder->countBlocks();
-                return;
-            }
         }
 
-        blockCount += currentBlockHolder->countBlocks();
-
-        currentBlockHolder->tryDelete(pHead, pTail);
-
-        /// !!! also ugly
-        printResult(arg1, COMMANDDELETE, arg2, getDELETENOTIFICATION());
+        if (block.isEmpty())
+        {
+            blockCount--;
+        }
+        attrName = arg2;
     }
     else if (arg1.isInt() && arg2.isEmpty())
     {
-        BlockHolder *currentBlockHolder = pHead;
         int blockIndex = arg1.toInt() - 1;
 
         if (!findBlockHolder(currentBlockHolder, blockIndex))
         {
             return;
         }
-
         currentBlockHolder->blocks[blockIndex].~Block(); // after delete head[i] calling head[i].isEmpty() may result in segmentation fault
         blockCount--;
-        currentBlockHolder->tryDelete(pHead, pTail);
-
-        // !!!ugly
-        Str tmp;
-        tmp += COMMANDNOARG2;
-        printResult(arg1, COMMANDDELETE, tmp, getDELETENOTIFICATION());
-        return;
+        attrName += COMMANDNOARG2;
     }
+    currentBlockHolder->tryDelete(pHead, pTail);
+    printResult(arg1, COMMANDDELETE, attrName, Str(DELETENOTIFICATION));
 }
 
 void executeCommand(BlockHolder *&head, BlockHolder *&tail, int &blockCount, char command, const Str &arg1, const Str &arg2)
